@@ -1,0 +1,21 @@
+services:
+  steel-db:
+    image: mysql:8.4
+    container_name: g90-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: g90_steel
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
