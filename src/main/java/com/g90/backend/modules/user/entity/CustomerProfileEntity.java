@@ -1,5 +1,6 @@
-package com.g90.backend.modules.account.entity;
+package com.g90.backend.modules.user.entity;
 
+import com.g90.backend.modules.account.entity.UserAccountEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -7,8 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -19,8 +20,8 @@ import org.springframework.util.StringUtils;
 @Getter
 @Setter
 @Entity
-@Table(name = "users")
-public class UserAccountEntity {
+@Table(name = "customers")
+public class CustomerProfileEntity {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -29,51 +30,52 @@ public class UserAccountEntity {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id")
-    private RoleEntity role;
+    @JoinColumn(name = "user_id")
+    private UserAccountEntity user;
 
-    @Column(name = "full_name", length = 255)
-    private String fullName;
+    @Column(name = "company_name", length = 255)
+    private String companyName;
 
-    @Column(name = "email", length = 255, unique = true)
-    private String email;
-
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
-
-    @Column(name = "phone", length = 50)
-    private String phone;
+    @Column(name = "tax_code", length = 20)
+    private String taxCode;
 
     @Column(name = "address", length = 500)
     private String address;
 
+    @Column(name = "contact_person", length = 255)
+    private String contactPerson;
+
+    @Column(name = "phone", length = 50)
+    private String phone;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Column(name = "customer_type", length = 50)
+    private String customerType;
+
+    @Column(name = "credit_limit", precision = 18, scale = 2)
+    private BigDecimal creditLimit;
+
     @Column(name = "status", length = 20)
     private String status;
 
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 
     @PrePersist
     public void prePersist() {
         if (!StringUtils.hasText(id)) {
             id = UUID.randomUUID().toString();
         }
+        if (creditLimit == null) {
+            creditLimit = BigDecimal.ZERO.setScale(2);
+        }
         if (!StringUtils.hasText(status)) {
-            status = AccountStatus.ACTIVE.name();
+            status = "ACTIVE";
         }
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);
         }
-        if (updatedAt == null) {
-            updatedAt = createdAt;
-        }
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        updatedAt = LocalDateTime.now(APP_ZONE);
     }
 }

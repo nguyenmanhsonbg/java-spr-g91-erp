@@ -1,5 +1,6 @@
 package com.g90.backend.modules.pricing.controller;
 
+import com.g90.backend.config.OpenApiConfig;
 import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.pricing.dto.PriceListCreateDataResponse;
 import com.g90.backend.modules.pricing.dto.PriceListCreateRequest;
@@ -11,6 +12,7 @@ import com.g90.backend.modules.pricing.dto.PriceListListQuery;
 import com.g90.backend.modules.pricing.dto.PriceListListResponseData;
 import com.g90.backend.modules.pricing.dto.PriceListUpdateRequest;
 import com.g90.backend.modules.pricing.service.PricingService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
 public class PricingController {
 
     private final PricingService pricingService;

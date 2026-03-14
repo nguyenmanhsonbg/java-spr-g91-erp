@@ -1,5 +1,6 @@
 package com.g90.backend.modules.account.controller;
 
+import com.g90.backend.config.OpenApiConfig;
 import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.account.dto.AccountCreateDataResponse;
 import com.g90.backend.modules.account.dto.AccountCreateRequest;
@@ -9,6 +10,7 @@ import com.g90.backend.modules.account.dto.AccountListQuery;
 import com.g90.backend.modules.account.dto.AccountListResponseData;
 import com.g90.backend.modules.account.dto.AccountUpdateRequest;
 import com.g90.backend.modules.account.service.AccountService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/accounts")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
 public class AccountController {
 
     private final AccountService accountService;
