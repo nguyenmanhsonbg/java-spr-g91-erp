@@ -66,6 +66,8 @@ public class SecurityConfig {
                         .hasRole("OWNER")
                         .requestMatchers("/api/accounts/**")
                         .hasRole("OWNER")
+                        .requestMatchers("/api/quotations/**")
+                        .hasRole("CUSTOMER")
                         .requestMatchers("/api/users/me")
                         .authenticated()
                         .requestMatchers("/api/auth/change-password")
