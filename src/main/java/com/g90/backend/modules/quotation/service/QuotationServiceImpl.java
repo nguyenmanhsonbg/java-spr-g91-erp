@@ -4,7 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.g90.backend.exception.CustomerProfileNotFoundException;
 import com.g90.backend.exception.ForbiddenOperationException;
+import com.g90.backend.exception.PromotionNotApplicableException;
 import com.g90.backend.exception.QuotationAmountTooLowException;
+import com.g90.backend.exception.QuotationNotEditableException;
+import com.g90.backend.exception.QuotationNotFoundException;
+import com.g90.backend.exception.QuotationNotSubmittableException;
 import com.g90.backend.exception.QuotationPricingNotFoundException;
 import com.g90.backend.exception.QuotationProjectAccessException;
 import com.g90.backend.exception.RequestValidationException;
@@ -13,16 +17,34 @@ import com.g90.backend.modules.account.entity.RoleName;
 import com.g90.backend.modules.account.entity.UserAccountEntity;
 import com.g90.backend.modules.account.repository.AuditLogRepository;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
+import com.g90.backend.modules.contract.repository.ContractRepository;
 import com.g90.backend.modules.pricing.entity.PriceListEntity;
 import com.g90.backend.modules.pricing.entity.PriceListItemEntity;
 import com.g90.backend.modules.pricing.repository.PriceListRepository;
+import com.g90.backend.modules.product.dto.PaginationResponse;
+import com.g90.backend.modules.product.dto.ProductListQuery;
 import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.product.entity.ProductStatus;
 import com.g90.backend.modules.product.repository.ProductRepository;
+import com.g90.backend.modules.product.repository.ProductSpecifications;
+import com.g90.backend.modules.promotion.entity.PromotionEntity;
+import com.g90.backend.modules.promotion.entity.PromotionProductEntity;
+import com.g90.backend.modules.promotion.repository.PromotionRepository;
+import com.g90.backend.modules.quotation.dto.CustomerQuotationListQuery;
+import com.g90.backend.modules.quotation.dto.CustomerQuotationListResponseData;
+import com.g90.backend.modules.quotation.dto.CustomerQuotationSummaryResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationDetailResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationFormInitQuery;
+import com.g90.backend.modules.quotation.dto.QuotationFormInitResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationHistoryResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationItemRequest;
 import com.g90.backend.modules.quotation.dto.QuotationItemResponse;
+import com.g90.backend.modules.quotation.dto.QuotationPreviewByIdResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewResponseData;
-import com.g90.backend.modules.quotation.dto.QuotationResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationSaveResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationSubmitActionRequest;
 import com.g90.backend.modules.quotation.dto.QuotationSubmitRequest;
+import com.g90.backend.modules.quotation.dto.QuotationSubmitResponseData;
 import com.g90.backend.modules.quotation.entity.ProjectEntity;
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import com.g90.backend.modules.quotation.entity.QuotationItemEntity;
@@ -30,6 +52,7 @@ import com.g90.backend.modules.quotation.entity.QuotationStatus;
 import com.g90.backend.modules.quotation.mapper.QuotationMapper;
 import com.g90.backend.modules.quotation.repository.ProjectRepository;
 import com.g90.backend.modules.quotation.repository.QuotationRepository;
+import com.g90.backend.modules.quotation.repository.QuotationSpecifications;
 import com.g90.backend.modules.user.entity.CustomerProfileEntity;
 import com.g90.backend.modules.user.repository.CustomerProfileRepository;
 import com.g90.backend.security.AuthenticatedUser;
@@ -41,10 +64,16 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,80 +85,412 @@ public class QuotationServiceImpl implements QuotationService {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final BigDecimal MIN_TOTAL_AMOUNT = new BigDecimal("10000000.00");
+    private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final Set<String> BLOCKED_PROJECT_STATUSES = Set.of("INACTIVE", "LOCKED", "CLOSED");
+    private static final Set<String> CUSTOMER_QUOTATION_SORT_FIELDS = Set.of(
+            "createdAt",
+            "quotationNumber",
+            "totalAmount",
+            "validUntil",
+            "status"
+    );
 
     private final QuotationRepository quotationRepository;
     private final ProjectRepository projectRepository;
     private final ProductRepository productRepository;
     private final PriceListRepository priceListRepository;
+    private final PromotionRepository promotionRepository;
     private final CustomerProfileRepository customerProfileRepository;
     private final UserAccountRepository userAccountRepository;
     private final AuditLogRepository auditLogRepository;
+    private final ContractRepository contractRepository;
     private final QuotationMapper quotationMapper;
     private final CurrentUserProvider currentUserProvider;
     private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
+    public QuotationFormInitResponseData getQuotationFormInit(QuotationFormInitQuery query) {
+        CustomerProfileEntity customer = loadCurrentCustomer();
+        Map<String, BigDecimal> unitPriceByProductId = loadUnitPriceMap(resolveApplicablePriceLists(customer));
+
+        ProductListQuery productQuery = new ProductListQuery();
+        productQuery.setKeyword(normalizeNullable(query.getKeyword()));
+        productQuery.setType(normalizeNullable(query.getType()));
+        productQuery.setSize(normalizeNullable(query.getSize()));
+        productQuery.setThickness(normalizeNullable(query.getThickness()));
+        productQuery.setStatus(ProductStatus.ACTIVE.name());
+
+        Page<ProductEntity> products = productRepository.findAll(
+                ProductSpecifications.withFilters(productQuery),
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizePageSize(query.getPageSize()), Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+
+        List<QuotationFormInitResponseData.ProductData> productData = products.stream()
+                .map(product -> new QuotationFormInitResponseData.ProductData(
+                        product.getId(),
+                        product.getProductCode(),
+                        product.getProductName(),
+                        product.getType(),
+                        product.getSize(),
+                        product.getThickness(),
+                        product.getUnit(),
+                        product.getReferenceWeight(),
+                        product.getStatus(),
+                        unitPriceByProductId.get(product.getId())
+                ))
+                .toList();
+
+        List<QuotationFormInitResponseData.ProjectData> projects = projectRepository.findByCustomer_IdOrderByCreatedAtDesc(customer.getId()).stream()
+                .filter(this::isProjectSelectable)
+                .map(project -> new QuotationFormInitResponseData.ProjectData(
+                        project.getId(),
+                        project.getProjectCode(),
+                        project.getName(),
+                        project.getStatus()
+                ))
+                .toList();
+
+        List<QuotationFormInitResponseData.PromotionData> promotions = promotionRepository.findActivePromotions(LocalDate.now(APP_ZONE)).stream()
+                .map(promotion -> new QuotationFormInitResponseData.PromotionData(
+                        promotion.getCode(),
+                        promotion.getName(),
+                        promotion.getPromotionType(),
+                        normalizeMoney(promotion.getDiscountValue())
+                ))
+                .toList();
+
+        return new QuotationFormInitResponseData(
+                new QuotationFormInitResponseData.CustomerData(
+                        customer.getId(),
+                        customer.getCompanyName(),
+                        customer.getCustomerType(),
+                        customer.getStatus()
+                ),
+                productData,
+                projects,
+                promotions
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public QuotationPreviewResponseData previewQuotation(QuotationSubmitRequest request) {
         CustomerProfileEntity customer = loadCurrentCustomer();
-        PreparedQuotation preparedQuotation = prepareQuotation(customer, request, true, true);
-        return quotationMapper.toPreviewResponse(
-                customer.getId(),
-                preparedQuotation.project() == null ? null : preparedQuotation.project().getId(),
-                QuotationStatus.PENDING.name(),
+        PreparedQuotation preparedQuotation = prepareQuotation(customer, request, true, false);
+        return new QuotationPreviewResponseData(
+                preparedQuotation.project() == null
+                        ? null
+                        : new QuotationPreviewResponseData.ProjectData(
+                                preparedQuotation.project().getId(),
+                                preparedQuotation.project().getProjectCode(),
+                                preparedQuotation.project().getName()
+                        ),
+                preparedQuotation.itemResponses(),
+                new QuotationPreviewResponseData.SummaryData(
+                        preparedQuotation.subTotal(),
+                        preparedQuotation.discountAmount(),
+                        preparedQuotation.totalAmount()
+                ),
+                preparedQuotation.promotion() == null
+                        ? null
+                        : new QuotationPreviewResponseData.PromotionData(
+                                preparedQuotation.promotion().code(),
+                                preparedQuotation.promotion().name(),
+                                preparedQuotation.promotion().applied()
+                        ),
+                preparedQuotation.deliveryRequirements(),
                 preparedQuotation.validUntil(),
-                preparedQuotation.totalAmount(),
-                normalizeNullable(request.getNote()),
-                normalizeNullable(request.getDeliveryRequirement()),
-                preparedQuotation.itemResponses()
+                new QuotationPreviewResponseData.ValidationData(true, List.of())
         );
     }
 
     @Override
     @Transactional
-    public QuotationResponseData createQuotation(QuotationSubmitRequest request) {
+    public QuotationSubmitResponseData createQuotation(QuotationSubmitRequest request) {
         CustomerProfileEntity customer = loadCurrentCustomer();
         PreparedQuotation preparedQuotation = prepareQuotation(customer, request, true, true);
 
-        QuotationEntity quotation = buildQuotationEntity(
+        QuotationEntity quotation = new QuotationEntity();
+        applyPreparedQuotation(
+                quotation,
                 customer,
                 preparedQuotation.project(),
                 preparedQuotation,
                 QuotationStatus.PENDING,
-                generateQuotationNumber()
+                generateQuotationNumber(),
+                LocalDateTime.now(APP_ZONE)
         );
 
         QuotationEntity savedQuotation = quotationRepository.save(quotation);
-        QuotationResponseData response = quotationMapper.toResponse(savedQuotation);
-        logAudit("CREATE_QUOTATION", savedQuotation.getId(), response, customer.getUser().getId());
+        QuotationSubmitResponseData response = quotationMapper.toSubmitResponse(savedQuotation, "Waiting for accountant review");
+        logAudit("CREATE_QUOTATION", savedQuotation.getId(), null, response, customer.getUser().getId());
         return response;
     }
 
     @Override
     @Transactional
-    public QuotationResponseData saveDraftQuotation(QuotationSubmitRequest request) {
+    public QuotationSaveResponseData saveDraftQuotation(QuotationSubmitRequest request) {
         CustomerProfileEntity customer = loadCurrentCustomer();
         PreparedQuotation preparedQuotation = prepareQuotation(customer, request, false, false);
 
-        QuotationEntity quotation = buildQuotationEntity(
+        QuotationEntity quotation = new QuotationEntity();
+        applyPreparedQuotation(
+                quotation,
                 customer,
                 preparedQuotation.project(),
                 preparedQuotation,
                 QuotationStatus.DRAFT,
+                generateQuotationNumber(),
                 null
         );
 
         QuotationEntity savedQuotation = quotationRepository.save(quotation);
-        QuotationResponseData response = quotationMapper.toResponse(savedQuotation);
-        logAudit("SAVE_QUOTATION_DRAFT", savedQuotation.getId(), response, customer.getUser().getId());
+        QuotationSaveResponseData response = quotationMapper.toSaveResponse(savedQuotation);
+        logAudit("SAVE_QUOTATION_DRAFT", savedQuotation.getId(), null, response, customer.getUser().getId());
         return response;
+    }
+
+    @Override
+    @Transactional
+    public QuotationSubmitResponseData submitQuotation(QuotationSubmitActionRequest request) {
+        if (StringUtils.hasText(request.getQuotationId())) {
+            return submitQuotation(request.getQuotationId());
+        }
+
+        validateSubmitActionRequest(request);
+        QuotationSubmitRequest submitRequest = new QuotationSubmitRequest();
+        submitRequest.setProjectId(request.getProjectId());
+        submitRequest.setDeliveryRequirements(request.getDeliveryRequirements());
+        submitRequest.setPromotionCode(request.getPromotionCode());
+        submitRequest.setNote(request.getNote());
+        submitRequest.setItems(request.getItems());
+        return createQuotation(submitRequest);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public QuotationPreviewByIdResponseData getQuotationPreview(String quotationId) {
+        QuotationEntity quotation = loadOwnedQuotation(quotationId);
+        PersistedQuotationSummary summary = calculatePersistedSummary(quotation);
+        PromotionEntity promotion = findActivePromotion(quotation.getPromotionCode());
+
+        return new QuotationPreviewByIdResponseData(
+                new QuotationPreviewByIdResponseData.QuotationData(
+                        quotation.getId(),
+                        quotation.getQuotationNumber(),
+                        quotation.getStatus(),
+                        quotation.getCreatedAt(),
+                        quotation.getValidUntil(),
+                        quotation.getProject() == null
+                                ? null
+                                : new QuotationPreviewByIdResponseData.ProjectData(
+                                        quotation.getProject().getId(),
+                                        quotation.getProject().getProjectCode(),
+                                        quotation.getProject().getName()
+                                ),
+                        quotation.getDeliveryRequirement(),
+                        !StringUtils.hasText(quotation.getPromotionCode())
+                                ? null
+                                : new QuotationPreviewByIdResponseData.PromotionData(
+                                        quotation.getPromotionCode(),
+                                        promotion == null ? null : promotion.getName()
+                                )
+                ),
+                quotationMapper.toItemResponses(quotation.getItems()),
+                new QuotationPreviewResponseData.SummaryData(
+                        summary.subTotal(),
+                        summary.discountAmount(),
+                        summary.totalAmount()
+                )
+        );
+    }
+
+    @Override
+    @Transactional
+    public QuotationSaveResponseData updateDraftQuotation(String quotationId, QuotationSubmitRequest request) {
+        CustomerProfileEntity customer = loadCurrentCustomer();
+        QuotationEntity quotation = loadOwnedQuotation(quotationId);
+        ensureDraft(quotation, true);
+
+        QuotationSaveResponseData oldState = quotationMapper.toSaveResponse(quotation);
+        PreparedQuotation preparedQuotation = prepareQuotation(customer, request, false, false);
+        applyPreparedQuotation(
+                quotation,
+                customer,
+                preparedQuotation.project(),
+                preparedQuotation,
+                QuotationStatus.DRAFT,
+                StringUtils.hasText(quotation.getQuotationNumber()) ? quotation.getQuotationNumber() : generateQuotationNumber(),
+                null
+        );
+
+        QuotationEntity savedQuotation = quotationRepository.save(quotation);
+        QuotationSaveResponseData response = quotationMapper.toSaveResponse(savedQuotation);
+        logAudit("UPDATE_QUOTATION", savedQuotation.getId(), oldState, response, customer.getUser().getId());
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public QuotationSubmitResponseData submitQuotation(String quotationId) {
+        CustomerProfileEntity customer = loadCurrentCustomer();
+        QuotationEntity quotation = loadOwnedQuotation(quotationId);
+        ensureDraft(quotation, false);
+        if (quotation.getTotalAmount() == null || quotation.getTotalAmount().compareTo(MIN_TOTAL_AMOUNT) < 0) {
+            throw new QuotationAmountTooLowException();
+        }
+
+        QuotationSubmitResponseData oldState = quotationMapper.toSubmitResponse(quotation, null);
+        quotation.setStatus(QuotationStatus.PENDING.name());
+        quotation.setSubmittedAt(LocalDateTime.now(APP_ZONE));
+        if (!StringUtils.hasText(quotation.getQuotationNumber())) {
+            quotation.setQuotationNumber(generateQuotationNumber());
+        }
+
+        QuotationEntity savedQuotation = quotationRepository.save(quotation);
+        QuotationSubmitResponseData response = quotationMapper.toSubmitResponse(savedQuotation, "Waiting for accountant review");
+        logAudit("SUBMIT_QUOTATION", savedQuotation.getId(), oldState, response, customer.getUser().getId());
+        return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CustomerQuotationListResponseData getMyQuotations(CustomerQuotationListQuery query) {
+        CustomerProfileEntity customer = loadCurrentCustomer();
+        Page<QuotationEntity> quotations = quotationRepository.findAll(
+                QuotationSpecifications.forCustomer(customer.getId(), query),
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizePageSize(query.getPageSize()), buildCustomerQuotationSort(query))
+        );
+
+        List<CustomerQuotationListResponseData.ItemData> items = quotations.stream()
+                .map(quotation -> new CustomerQuotationListResponseData.ItemData(
+                        quotation.getId(),
+                        quotation.getQuotationNumber(),
+                        quotation.getCreatedAt(),
+                        quotation.getTotalAmount(),
+                        quotation.getStatus(),
+                        quotation.getValidUntil(),
+                        new CustomerQuotationListResponseData.ActionData(true, isDraft(quotation), !isDraft(quotation))
+                ))
+                .toList();
+
+        return new CustomerQuotationListResponseData(
+                items,
+                PaginationResponse.builder()
+                        .page(quotations.getNumber() + 1)
+                        .pageSize(quotations.getSize())
+                        .totalItems(quotations.getTotalElements())
+                        .totalPages(quotations.getTotalPages())
+                        .build(),
+                new CustomerQuotationListResponseData.FilterData(
+                        normalizeNullable(query.getStatus()),
+                        query.getFromDate(),
+                        query.getToDate()
+                )
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CustomerQuotationSummaryResponseData getMyQuotationSummary() {
+        CustomerProfileEntity customer = loadCurrentCustomer();
+        return new CustomerQuotationSummaryResponseData(
+                quotationRepository.countByCustomer_Id(customer.getId()),
+                quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.DRAFT.name()),
+                quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.PENDING.name()),
+                quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.CONVERTED.name()),
+                quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.REJECTED.name())
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public QuotationDetailResponseData getQuotationDetail(String quotationId) {
+        AuthenticatedUser currentUser = currentUserProvider.getCurrentUser();
+        QuotationEntity quotation = loadAccessibleQuotation(quotationId, currentUser);
+        PersistedQuotationSummary summary = calculatePersistedSummary(quotation);
+
+        boolean customerCanEdit = RoleName.CUSTOMER.name().equalsIgnoreCase(currentUser.role()) && isDraft(quotation);
+        boolean accountantCanCreateContract = hasAnyRole(currentUser.role(), RoleName.ACCOUNTANT, RoleName.OWNER)
+                && canCreateContract(quotation);
+
+        return new QuotationDetailResponseData(
+                new QuotationDetailResponseData.QuotationData(
+                        quotation.getId(),
+                        quotation.getQuotationNumber(),
+                        quotation.getStatus(),
+                        quotation.getTotalAmount(),
+                        quotation.getValidUntil(),
+                        quotation.getCreatedAt()
+                ),
+                new QuotationDetailResponseData.CustomerData(
+                        quotation.getCustomer().getId(),
+                        quotation.getCustomer().getCompanyName(),
+                        quotation.getCustomer().getTaxCode(),
+                        quotation.getCustomer().getAddress(),
+                        quotation.getCustomer().getContactPerson(),
+                        quotation.getCustomer().getPhone(),
+                        quotation.getCustomer().getEmail(),
+                        quotation.getCustomer().getCustomerType()
+                ),
+                quotation.getProject() == null
+                        ? null
+                        : new QuotationDetailResponseData.ProjectData(
+                                quotation.getProject().getId(),
+                                quotation.getProject().getProjectCode(),
+                                quotation.getProject().getName(),
+                                quotation.getProject().getLocation(),
+                                quotation.getProject().getStatus()
+                        ),
+                quotationMapper.toItemResponses(quotation.getItems()),
+                new QuotationDetailResponseData.PricingData(
+                        summary.subTotal(),
+                        summary.discountAmount(),
+                        summary.totalAmount(),
+                        quotation.getPromotionCode()
+                ),
+                quotation.getDeliveryRequirement(),
+                new QuotationDetailResponseData.ActionData(customerCanEdit, accountantCanCreateContract)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public QuotationHistoryResponseData getQuotationHistory(String quotationId) {
+        loadAccessibleQuotation(quotationId, currentUserProvider.getCurrentUser());
+        List<AuditLogEntity> logs = auditLogRepository.findQuotationHistory(quotationId);
+
+        Set<String> userIds = logs.stream()
+                .map(AuditLogEntity::getUserId)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        Map<String, UserAccountEntity> usersById = loadUsersById(userIds);
+        Map<String, CustomerProfileEntity> customersByUserId = loadCustomersByUserId(userIds);
+
+        List<QuotationHistoryResponseData.EventData> events = logs.stream()
+                .map(log -> {
+                    UserAccountEntity user = usersById.get(log.getUserId());
+                    CustomerProfileEntity customer = customersByUserId.get(log.getUserId());
+                    return new QuotationHistoryResponseData.EventData(
+                            log.getId(),
+                            mapHistoryAction(log.getAction()),
+                            user == null || user.getRole() == null ? "SYSTEM" : user.getRole().getName(),
+                            resolveActorName(user, customer),
+                            mapHistoryNote(log.getAction()),
+                            log.getCreatedAt()
+                    );
+                })
+                .toList();
+
+        return new QuotationHistoryResponseData(quotationId, events);
     }
 
     private CustomerProfileEntity loadCurrentCustomer() {
         AuthenticatedUser currentUser = currentUserProvider.getCurrentUser();
         if (!RoleName.CUSTOMER.name().equalsIgnoreCase(currentUser.role())) {
-            throw new ForbiddenOperationException("Only customer can create quotations");
+            throw new ForbiddenOperationException("You do not have permission to perform this action");
         }
 
         UserAccountEntity user = userAccountRepository.findWithRoleById(currentUser.userId())
@@ -142,44 +503,63 @@ public class QuotationServiceImpl implements QuotationService {
         return customer;
     }
 
+    private QuotationEntity loadOwnedQuotation(String quotationId) {
+        CustomerProfileEntity customer = loadCurrentCustomer();
+        return quotationRepository.findDetailedByIdAndCustomer_Id(quotationId, customer.getId())
+                .orElseThrow(QuotationNotFoundException::new);
+    }
+
+    private QuotationEntity loadAccessibleQuotation(String quotationId, AuthenticatedUser currentUser) {
+        if (RoleName.CUSTOMER.name().equalsIgnoreCase(currentUser.role())) {
+            CustomerProfileEntity customer = loadCurrentCustomer();
+            return quotationRepository.findDetailedByIdAndCustomer_Id(quotationId, customer.getId())
+                    .orElseThrow(QuotationNotFoundException::new);
+        }
+        if (!hasAnyRole(currentUser.role(), RoleName.ACCOUNTANT, RoleName.OWNER)) {
+            throw new ForbiddenOperationException("You do not have permission to perform this action");
+        }
+        return quotationRepository.findDetailedById(quotationId)
+                .orElseThrow(QuotationNotFoundException::new);
+    }
+
     private PreparedQuotation prepareQuotation(
             CustomerProfileEntity customer,
             QuotationSubmitRequest request,
             boolean pricingRequired,
             boolean enforceMinimumAmount
     ) {
-        validateDuplicateProducts(request);
+        validateQuotationItems(request.getItems());
+        validateDuplicateProducts(request.getItems());
 
         ProjectEntity project = resolveProject(customer.getId(), normalizeNullable(request.getProjectId()));
 
-        Map<String, ProductEntity> products = loadProducts(request);
-        List<PriceListEntity> applicablePriceLists = resolveApplicablePriceLists(customer, pricingRequired, request);
-        Map<String, BigDecimal> unitPriceByProductId = mapUnitPrices(applicablePriceLists);
+        Map<String, ProductEntity> products = loadProducts(request.getItems());
+        Map<String, BigDecimal> unitPriceByProductId = loadUnitPriceMap(resolveApplicablePriceLists(customer));
 
         List<PreparedQuotationItem> preparedItems = new ArrayList<>();
         List<QuotationItemResponse> itemResponses = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal subTotal = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
-        for (var itemRequest : request.getItems()) {
+        for (QuotationItemRequest itemRequest : request.getItems()) {
             ProductEntity product = products.get(itemRequest.getProductId().trim());
             validateProduct(product);
 
-            BigDecimal unitPrice = unitPriceByProductId.get(product.getId());
             BigDecimal quantity = normalizeMoney(itemRequest.getQuantity());
-            BigDecimal totalPrice = null;
+            BigDecimal unitPrice = resolveUnitPrice(itemRequest, unitPriceByProductId, pricingRequired);
+            BigDecimal totalPrice = unitPrice == null
+                    ? null
+                    : quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
 
-            if (unitPrice == null) {
-                if (pricingRequired) {
-                    throw new QuotationPricingNotFoundException(product.getId());
-                }
-            } else {
-                totalPrice = quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
-                totalAmount = totalAmount.add(totalPrice).setScale(2, RoundingMode.HALF_UP);
+            if (totalPrice != null) {
+                subTotal = subTotal.add(totalPrice).setScale(2, RoundingMode.HALF_UP);
             }
 
             preparedItems.add(new PreparedQuotationItem(product, quantity, unitPrice, totalPrice));
             itemResponses.add(quotationMapper.toItemResponse(null, product, quantity, unitPrice, totalPrice));
         }
+
+        PromotionOutcome promotion = resolvePromotion(normalizeNullable(request.getPromotionCode()), preparedItems, subTotal);
+        BigDecimal totalAmount = subTotal.subtract(promotion.discountAmount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
         if (enforceMinimumAmount && totalAmount.compareTo(MIN_TOTAL_AMOUNT) < 0) {
             throw new QuotationAmountTooLowException();
@@ -188,17 +568,33 @@ public class QuotationServiceImpl implements QuotationService {
         return new PreparedQuotation(
                 project,
                 LocalDate.now(APP_ZONE).plusDays(15),
+                subTotal,
+                promotion.discountAmount(),
                 totalAmount,
                 preparedItems,
                 itemResponses,
                 normalizeNullable(request.getNote()),
-                normalizeNullable(request.getDeliveryRequirement())
+                normalizeNullable(request.getDeliveryRequirements()),
+                promotion
         );
     }
 
-    private void validateDuplicateProducts(QuotationSubmitRequest request) {
-        Set<String> uniqueProductIds = new java.util.HashSet<>();
-        for (var item : request.getItems()) {
+    private void validateSubmitActionRequest(QuotationSubmitActionRequest request) {
+        validateQuotationItems(request.getItems());
+    }
+
+    private void validateQuotationItems(List<QuotationItemRequest> items) {
+        if (items == null || items.isEmpty()) {
+            throw RequestValidationException.singleError("items", "At least one quotation item is required");
+        }
+        if (items.size() > 20) {
+            throw RequestValidationException.singleError("items", "Quotation can contain at most 20 items");
+        }
+    }
+
+    private void validateDuplicateProducts(List<QuotationItemRequest> items) {
+        Set<String> uniqueProductIds = new LinkedHashSet<>();
+        for (QuotationItemRequest item : items) {
             String productId = item.getProductId().trim();
             if (!uniqueProductIds.add(productId)) {
                 throw RequestValidationException.singleError("items", "Duplicate productId is not allowed");
@@ -213,15 +609,14 @@ public class QuotationServiceImpl implements QuotationService {
         ProjectEntity project = projectRepository.findByIdAndCustomer_Id(projectId, customerId)
                 .orElseThrow(QuotationProjectAccessException::new);
 
-        if (StringUtils.hasText(project.getStatus())
-                && BLOCKED_PROJECT_STATUSES.contains(project.getStatus().trim().toUpperCase())) {
+        if (!isProjectSelectable(project)) {
             throw new QuotationProjectAccessException();
         }
         return project;
     }
 
-    private Map<String, ProductEntity> loadProducts(QuotationSubmitRequest request) {
-        List<String> productIds = request.getItems().stream()
+    private Map<String, ProductEntity> loadProducts(List<QuotationItemRequest> items) {
+        List<String> productIds = items.stream()
                 .map(item -> item.getProductId().trim())
                 .toList();
 
@@ -235,30 +630,16 @@ public class QuotationServiceImpl implements QuotationService {
         return productMap;
     }
 
-    private List<PriceListEntity> resolveApplicablePriceLists(
-            CustomerProfileEntity customer,
-            boolean pricingRequired,
-            QuotationSubmitRequest request
-    ) {
+    private List<PriceListEntity> resolveApplicablePriceLists(CustomerProfileEntity customer) {
         String customerGroup = normalizeNullable(customer.getCustomerType());
         if (!StringUtils.hasText(customerGroup)) {
-            if (pricingRequired) {
-                throw new QuotationPricingNotFoundException(request.getItems().get(0).getProductId().trim());
-            }
             return List.of();
         }
 
-        List<PriceListEntity> priceLists = priceListRepository.findApplicablePriceLists(
-                customerGroup,
-                LocalDate.now(APP_ZONE)
-        );
-        if (priceLists.isEmpty() && pricingRequired) {
-            throw new QuotationPricingNotFoundException(request.getItems().get(0).getProductId().trim());
-        }
-        return priceLists;
+        return priceListRepository.findApplicablePriceLists(customerGroup, LocalDate.now(APP_ZONE));
     }
 
-    private Map<String, BigDecimal> mapUnitPrices(List<PriceListEntity> applicablePriceLists) {
+    private Map<String, BigDecimal> loadUnitPriceMap(List<PriceListEntity> applicablePriceLists) {
         Map<String, BigDecimal> unitPriceByProductId = new LinkedHashMap<>();
         if (applicablePriceLists.isEmpty()) {
             return unitPriceByProductId;
@@ -273,20 +654,89 @@ public class QuotationServiceImpl implements QuotationService {
         return unitPriceByProductId;
     }
 
+    private BigDecimal resolveUnitPrice(
+            QuotationItemRequest itemRequest,
+            Map<String, BigDecimal> unitPriceByProductId,
+            boolean pricingRequired
+    ) {
+        String productId = itemRequest.getProductId().trim();
+        BigDecimal resolved = unitPriceByProductId.get(productId);
+        if (resolved != null) {
+            return resolved;
+        }
+        if (itemRequest.getUnitPrice() != null) {
+            return normalizeMoney(itemRequest.getUnitPrice());
+        }
+        if (pricingRequired) {
+            throw new QuotationPricingNotFoundException(productId);
+        }
+        return null;
+    }
+
+    private PromotionOutcome resolvePromotion(
+            String promotionCode,
+            List<PreparedQuotationItem> items,
+            BigDecimal subTotal
+    ) {
+        if (!StringUtils.hasText(promotionCode)) {
+            return new PromotionOutcome(null, null, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), false);
+        }
+
+        PromotionEntity promotion = promotionRepository.findApplicableByCode(promotionCode, LocalDate.now(APP_ZONE))
+                .orElseThrow(() -> new PromotionNotApplicableException(promotionCode));
+
+        Set<String> selectedProductIds = items.stream()
+                .map(item -> item.product().getId())
+                .collect(Collectors.toSet());
+        if (!isPromotionApplicableToProducts(promotion, selectedProductIds)) {
+            throw new PromotionNotApplicableException(promotionCode);
+        }
+
+        BigDecimal discountAmount = calculateDiscountAmount(promotion, subTotal);
+        return new PromotionOutcome(promotion.getCode(), promotion.getName(), discountAmount, discountAmount.compareTo(BigDecimal.ZERO) > 0);
+    }
+
+    private boolean isPromotionApplicableToProducts(PromotionEntity promotion, Set<String> selectedProductIds) {
+        if (promotion.getProducts() == null || promotion.getProducts().isEmpty()) {
+            return true;
+        }
+        return promotion.getProducts().stream()
+                .map(PromotionProductEntity::getProduct)
+                .filter(product -> product != null)
+                .map(ProductEntity::getId)
+                .anyMatch(selectedProductIds::contains);
+    }
+
+    private BigDecimal calculateDiscountAmount(PromotionEntity promotion, BigDecimal subTotal) {
+        if (promotion.getDiscountValue() == null || subTotal.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal rawDiscount;
+        if ("PERCENT".equalsIgnoreCase(promotion.getPromotionType())) {
+            rawDiscount = subTotal.multiply(promotion.getDiscountValue())
+                    .divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        } else {
+            rawDiscount = normalizeMoney(promotion.getDiscountValue());
+        }
+        return rawDiscount.min(subTotal).setScale(2, RoundingMode.HALF_UP);
+    }
+
     private void validateProduct(ProductEntity product) {
         if (!ProductStatus.ACTIVE.name().equalsIgnoreCase(product.getStatus())) {
             throw RequestValidationException.singleError("productId", "Product must be ACTIVE: " + product.getId());
         }
     }
 
-    private QuotationEntity buildQuotationEntity(
+    private void applyPreparedQuotation(
+            QuotationEntity quotation,
             CustomerProfileEntity customer,
             ProjectEntity project,
             PreparedQuotation preparedQuotation,
             QuotationStatus status,
-            String quotationNumber
+            String quotationNumber,
+            LocalDateTime submittedAt
     ) {
-        QuotationEntity quotation = new QuotationEntity();
         quotation.setCustomer(customer);
         quotation.setProject(project);
         quotation.setQuotationNumber(quotationNumber);
@@ -294,9 +744,11 @@ public class QuotationServiceImpl implements QuotationService {
         quotation.setValidUntil(preparedQuotation.validUntil());
         quotation.setTotalAmount(preparedQuotation.totalAmount());
         quotation.setNote(preparedQuotation.note());
-        quotation.setDeliveryRequirement(preparedQuotation.deliveryRequirement());
+        quotation.setDeliveryRequirement(preparedQuotation.deliveryRequirements());
+        quotation.setPromotionCode(preparedQuotation.promotion() == null ? null : preparedQuotation.promotion().code());
+        quotation.setSubmittedAt(submittedAt);
 
-        List<QuotationItemEntity> itemEntities = new ArrayList<>();
+        quotation.getItems().clear();
         for (PreparedQuotationItem preparedItem : preparedQuotation.items()) {
             QuotationItemEntity itemEntity = new QuotationItemEntity();
             itemEntity.setQuotation(quotation);
@@ -304,10 +756,124 @@ public class QuotationServiceImpl implements QuotationService {
             itemEntity.setQuantity(preparedItem.quantity());
             itemEntity.setUnitPrice(preparedItem.unitPrice());
             itemEntity.setTotalPrice(preparedItem.totalPrice());
-            itemEntities.add(itemEntity);
+            quotation.getItems().add(itemEntity);
         }
-        quotation.setItems(itemEntities);
-        return quotation;
+    }
+
+    private PersistedQuotationSummary calculatePersistedSummary(QuotationEntity quotation) {
+        BigDecimal subTotal = quotation.getItems().stream()
+                .map(item -> item.getTotalPrice() != null
+                        ? item.getTotalPrice()
+                        : defaultIfNull(item.getUnitPrice()).multiply(defaultIfNull(item.getQuantity())).setScale(2, RoundingMode.HALF_UP))
+                .reduce(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal totalAmount = quotation.getTotalAmount() == null ? subTotal : normalizeMoney(quotation.getTotalAmount());
+        BigDecimal discountAmount = subTotal.subtract(totalAmount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        return new PersistedQuotationSummary(subTotal, discountAmount, totalAmount);
+    }
+
+    private PromotionEntity findActivePromotion(String promotionCode) {
+        if (!StringUtils.hasText(promotionCode)) {
+            return null;
+        }
+        return promotionRepository.findApplicableByCode(promotionCode, LocalDate.now(APP_ZONE)).orElse(null);
+    }
+
+    private Map<String, UserAccountEntity> loadUsersById(Collection<String> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return userAccountRepository.findByIdIn(userIds).stream()
+                .collect(Collectors.toMap(UserAccountEntity::getId, user -> user));
+    }
+
+    private Map<String, CustomerProfileEntity> loadCustomersByUserId(Collection<String> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return customerProfileRepository.findByUser_IdIn(userIds).stream()
+                .filter(customer -> customer.getUser() != null)
+                .collect(Collectors.toMap(customer -> customer.getUser().getId(), customer -> customer));
+    }
+
+    private String resolveActorName(UserAccountEntity user, CustomerProfileEntity customer) {
+        if (customer != null && StringUtils.hasText(customer.getCompanyName())) {
+            return customer.getCompanyName();
+        }
+        if (user != null && StringUtils.hasText(user.getFullName())) {
+            return user.getFullName();
+        }
+        if (user != null && StringUtils.hasText(user.getEmail())) {
+            return user.getEmail();
+        }
+        return "System";
+    }
+
+    private String mapHistoryAction(String action) {
+        return switch (action) {
+            case "SAVE_QUOTATION_DRAFT" -> "CREATED";
+            case "UPDATE_QUOTATION" -> "UPDATED";
+            case "CREATE_QUOTATION", "SUBMIT_QUOTATION" -> "SUBMITTED";
+            case "CREATE_CONTRACT_FROM_QUOTATION" -> "CONVERTED";
+            default -> action;
+        };
+    }
+
+    private String mapHistoryNote(String action) {
+        return switch (action) {
+            case "SAVE_QUOTATION_DRAFT" -> "Quotation draft created";
+            case "UPDATE_QUOTATION" -> "Quotation updated";
+            case "CREATE_QUOTATION", "SUBMIT_QUOTATION" -> "Quotation submitted for review";
+            case "CREATE_CONTRACT_FROM_QUOTATION" -> "Contract created from quotation";
+            default -> action.replace('_', ' ').toLowerCase();
+        };
+    }
+
+    private boolean isProjectSelectable(ProjectEntity project) {
+        return !StringUtils.hasText(project.getStatus())
+                || !BLOCKED_PROJECT_STATUSES.contains(project.getStatus().trim().toUpperCase());
+    }
+
+    private void ensureDraft(QuotationEntity quotation, boolean editableAction) {
+        if (isDraft(quotation)) {
+            return;
+        }
+        if (editableAction) {
+            throw new QuotationNotEditableException();
+        }
+        throw new QuotationNotSubmittableException();
+    }
+
+    private boolean isDraft(QuotationEntity quotation) {
+        return QuotationStatus.DRAFT.name().equalsIgnoreCase(quotation.getStatus());
+    }
+
+    private boolean canCreateContract(QuotationEntity quotation) {
+        if (contractRepository.existsByQuotation_Id(quotation.getId())) {
+            return false;
+        }
+        if (QuotationStatus.CONVERTED.name().equalsIgnoreCase(quotation.getStatus())
+                || QuotationStatus.REJECTED.name().equalsIgnoreCase(quotation.getStatus())
+                || QuotationStatus.DRAFT.name().equalsIgnoreCase(quotation.getStatus())) {
+            return false;
+        }
+        return quotation.getTotalAmount() != null && quotation.getTotalAmount().compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    private boolean hasAnyRole(String currentRole, RoleName... allowedRoles) {
+        for (RoleName role : allowedRoles) {
+            if (role.name().equalsIgnoreCase(currentRole)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Sort buildCustomerQuotationSort(CustomerQuotationListQuery query) {
+        String sortBy = CUSTOMER_QUOTATION_SORT_FIELDS.contains(query.getSortBy()) ? query.getSortBy() : "createdAt";
+        Sort.Direction direction = "asc".equalsIgnoreCase(query.getSortDir()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return Sort.by(direction, sortBy);
     }
 
     private String generateQuotationNumber() {
@@ -318,12 +884,13 @@ public class QuotationServiceImpl implements QuotationService {
         return "QT-" + today.format(DateTimeFormatter.BASIC_ISO_DATE) + "-" + String.format("%04d", sequence);
     }
 
-    private void logAudit(String action, String entityId, Object newValue, String userId) {
+    private void logAudit(String action, String entityId, Object oldValue, Object newValue, String userId) {
         AuditLogEntity auditLog = new AuditLogEntity();
         auditLog.setUserId(userId);
         auditLog.setAction(action);
         auditLog.setEntityType("QUOTATION");
         auditLog.setEntityId(entityId);
+        auditLog.setOldValue(toJson(oldValue));
         auditLog.setNewValue(toJson(newValue));
         auditLogRepository.save(auditLog);
     }
@@ -340,7 +907,22 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     private BigDecimal normalizeMoney(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal defaultIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : normalizeMoney(value);
+    }
+
+    private int normalizePage(Integer page) {
+        return page == null || page < 1 ? 1 : page;
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        return pageSize == null || pageSize < 1 ? 20 : pageSize;
     }
 
     private String normalizeNullable(String value) {
@@ -350,11 +932,14 @@ public class QuotationServiceImpl implements QuotationService {
     private record PreparedQuotation(
             ProjectEntity project,
             LocalDate validUntil,
+            BigDecimal subTotal,
+            BigDecimal discountAmount,
             BigDecimal totalAmount,
             List<PreparedQuotationItem> items,
             List<QuotationItemResponse> itemResponses,
             String note,
-            String deliveryRequirement
+            String deliveryRequirements,
+            PromotionOutcome promotion
     ) {
     }
 
@@ -363,6 +948,21 @@ public class QuotationServiceImpl implements QuotationService {
             BigDecimal quantity,
             BigDecimal unitPrice,
             BigDecimal totalPrice
+    ) {
+    }
+
+    private record PromotionOutcome(
+            String code,
+            String name,
+            BigDecimal discountAmount,
+            boolean applied
+    ) {
+    }
+
+    private record PersistedQuotationSummary(
+            BigDecimal subTotal,
+            BigDecimal discountAmount,
+            BigDecimal totalAmount
     ) {
     }
 }

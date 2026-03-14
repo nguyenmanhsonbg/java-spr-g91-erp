@@ -2,8 +2,8 @@ package com.g90.backend.modules.quotation.mapper;
 
 import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.quotation.dto.QuotationItemResponse;
-import com.g90.backend.modules.quotation.dto.QuotationPreviewResponseData;
-import com.g90.backend.modules.quotation.dto.QuotationResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationSaveResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationSubmitResponseData;
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import com.g90.backend.modules.quotation.entity.QuotationItemEntity;
 import java.math.BigDecimal;
@@ -45,41 +45,46 @@ public class QuotationMapper {
         );
     }
 
-    public QuotationPreviewResponseData toPreviewResponse(
-            String customerId,
-            String projectId,
-            String status,
-            java.time.LocalDate validUntil,
-            BigDecimal totalAmount,
-            String note,
-            String deliveryRequirement,
-            List<QuotationItemResponse> items
-    ) {
-        return QuotationPreviewResponseData.builder()
-                .customerId(customerId)
-                .projectId(projectId)
-                .status(status)
-                .validUntil(validUntil)
-                .totalAmount(totalAmount)
-                .note(note)
-                .deliveryRequirement(deliveryRequirement)
-                .items(items)
-                .build();
+    public List<QuotationItemResponse> toItemResponses(List<QuotationItemEntity> items) {
+        return items.stream().map(this::toItemResponse).toList();
     }
 
-    public QuotationResponseData toResponse(QuotationEntity entity) {
-        return QuotationResponseData.builder()
-                .id(entity.getId())
-                .quotationNumber(entity.getQuotationNumber())
-                .customerId(entity.getCustomer().getId())
-                .projectId(entity.getProject() == null ? null : entity.getProject().getId())
-                .status(entity.getStatus())
-                .validUntil(entity.getValidUntil())
-                .totalAmount(entity.getTotalAmount())
-                .note(entity.getNote())
-                .deliveryRequirement(entity.getDeliveryRequirement())
-                .items(entity.getItems().stream().map(this::toItemResponse).toList())
-                .createdAt(entity.getCreatedAt())
-                .build();
+    public QuotationSaveResponseData toSaveResponse(QuotationEntity entity) {
+        return new QuotationSaveResponseData(
+                new QuotationSaveResponseData.QuotationData(
+                        entity.getId(),
+                        entity.getQuotationNumber(),
+                        entity.getCustomer().getId(),
+                        entity.getProject() == null ? null : entity.getProject().getId(),
+                        entity.getTotalAmount(),
+                        entity.getStatus(),
+                        entity.getValidUntil(),
+                        entity.getCreatedAt()
+                ),
+                toItemResponses(entity.getItems()),
+                new QuotationSaveResponseData.MetadataData(
+                        entity.getDeliveryRequirement(),
+                        entity.getPromotionCode()
+                )
+        );
+    }
+
+    public QuotationSubmitResponseData toSubmitResponse(QuotationEntity entity, String nextAction) {
+        return new QuotationSubmitResponseData(
+                new QuotationSubmitResponseData.QuotationData(
+                        entity.getId(),
+                        entity.getQuotationNumber(),
+                        entity.getCustomer().getId(),
+                        entity.getProject() == null ? null : entity.getProject().getId(),
+                        entity.getTotalAmount(),
+                        entity.getStatus(),
+                        entity.getValidUntil(),
+                        entity.getCreatedAt()
+                ),
+                new QuotationSubmitResponseData.TrackingData(
+                        entity.getSubmittedAt(),
+                        nextAction
+                )
+        );
     }
 }

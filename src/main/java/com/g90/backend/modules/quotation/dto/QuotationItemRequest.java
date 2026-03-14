@@ -19,4 +19,7 @@ public class QuotationItemRequest {
     @NotNull(message = "Quantity is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Quantity must be greater than 0")
     private BigDecimal quantity;
+
+    @DecimalMin(value = "0.0", inclusive = false, message = "Unit price must be greater than 0")
+    private BigDecimal unitPrice;
 }

@@ -6,7 +6,8 @@ public enum QuotationStatus {
     DRAFT,
     PENDING,
     APPROVED,
-    REJECTED;
+    REJECTED,
+    CONVERTED;
 
     public static QuotationStatus from(String value) {
         return QuotationStatus.valueOf(value.trim().toUpperCase(Locale.ROOT));

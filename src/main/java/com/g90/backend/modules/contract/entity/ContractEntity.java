@@ -1,5 +1,6 @@
-package com.g90.backend.modules.quotation.entity;
+package com.g90.backend.modules.contract.entity;
 
+import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import com.g90.backend.modules.user.entity.CustomerProfileEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -10,10 +11,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -26,8 +25,8 @@ import org.springframework.util.StringUtils;
 @Getter
 @Setter
 @Entity
-@Table(name = "quotations")
-public class QuotationEntity {
+@Table(name = "contracts")
+public class ContractEntity {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -35,16 +34,16 @@ public class QuotationEntity {
     @Column(name = "id", length = 36, nullable = false)
     private String id;
 
-    @Column(name = "quotation_number", length = 50, unique = true)
-    private String quotationNumber;
+    @Column(name = "contract_number", length = 50)
+    private String contractNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private CustomerProfileEntity customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id")
-    private ProjectEntity project;
+    @JoinColumn(name = "quotation_id")
+    private QuotationEntity quotation;
 
     @Column(name = "total_amount", precision = 18, scale = 2)
     private BigDecimal totalAmount;
@@ -52,29 +51,20 @@ public class QuotationEntity {
     @Column(name = "status", length = 50)
     private String status;
 
-    @Column(name = "valid_until")
-    private LocalDate validUntil;
+    @Column(name = "payment_terms", length = 255)
+    private String paymentTerms;
 
-    @Column(name = "note", length = 1000)
-    private String note;
+    @Column(name = "delivery_address", length = 500)
+    private String deliveryAddress;
 
-    @Column(name = "delivery_requirement", length = 1000)
-    private String deliveryRequirement;
-
-    @Column(name = "promotion_code", length = 50)
-    private String promotionCode;
+    @Column(name = "created_by", length = 36)
+    private String createdBy;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @Column(name = "submitted_at")
-    private LocalDateTime submittedAt;
-
-    @OneToMany(mappedBy = "quotation", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<QuotationItemEntity> items = new ArrayList<>();
+    @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ContractItemEntity> items = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -84,13 +74,5 @@ public class QuotationEntity {
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);
         }
-        if (updatedAt == null) {
-            updatedAt = createdAt;
-        }
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        updatedAt = LocalDateTime.now(APP_ZONE);
     }
 }

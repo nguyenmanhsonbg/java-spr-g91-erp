@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -31,6 +32,12 @@ public class ProjectEntity {
     @Column(name = "name", length = 255)
     private String name;
 
+    @Column(name = "location", length = 500)
+    private String location;
+
     @Column(name = "status", length = 20)
     private String status;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }

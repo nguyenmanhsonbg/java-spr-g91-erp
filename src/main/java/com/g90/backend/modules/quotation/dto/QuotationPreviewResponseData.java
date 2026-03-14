@@ -1,19 +1,44 @@
 package com.g90.backend.modules.quotation.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import lombok.Builder;
 
-@Builder
 public record QuotationPreviewResponseData(
-        String customerId,
-        String projectId,
-        String status,
+        ProjectData project,
+        List<QuotationItemResponse> items,
+        SummaryData summary,
+        PromotionData promotion,
+        @JsonProperty("deliveryRequirements") String deliveryRequirements,
         LocalDate validUntil,
-        BigDecimal totalAmount,
-        String note,
-        String deliveryRequirement,
-        List<QuotationItemResponse> items
+        ValidationData validation
 ) {
+
+    public record ProjectData(
+            String id,
+            String projectCode,
+            String name
+    ) {
+    }
+
+    public record SummaryData(
+            BigDecimal subTotal,
+            BigDecimal discountAmount,
+            BigDecimal totalAmount
+    ) {
+    }
+
+    public record PromotionData(
+            String code,
+            String name,
+            Boolean applied
+    ) {
+    }
+
+    public record ValidationData(
+            boolean valid,
+            List<String> messages
+    ) {
+    }
 }
