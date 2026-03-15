@@ -39,6 +39,15 @@ public class ContractItemEntity {
     @Column(name = "unit_price", precision = 18, scale = 2)
     private BigDecimal unitPrice;
 
+    @Column(name = "base_unit_price", precision = 18, scale = 2)
+    private BigDecimal baseUnitPrice;
+
+    @Column(name = "discount_amount", precision = 18, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(name = "price_override_reason", length = 500)
+    private String priceOverrideReason;
+
     @Column(name = "total_price", precision = 18, scale = 2)
     private BigDecimal totalPrice;
 
@@ -46,6 +55,9 @@ public class ContractItemEntity {
     public void prePersist() {
         if (!StringUtils.hasText(id)) {
             id = UUID.randomUUID().toString();
+        }
+        if (discountAmount == null) {
+            discountAmount = BigDecimal.ZERO.setScale(2);
         }
     }
 }

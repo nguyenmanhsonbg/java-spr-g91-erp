@@ -1,6 +1,7 @@
 package com.g90.backend.modules.quotation.repository;
 
 import com.g90.backend.modules.quotation.dto.CustomerQuotationListQuery;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListQuery;
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +21,16 @@ public final class QuotationSpecifications {
                 .and(createdAtTo(query.getToDate()));
     }
 
+    public static Specification<QuotationEntity> byQuery(QuotationManagementListQuery query, String scopedCustomerId) {
+        return Specification.where(customerEquals(scopedCustomerId))
+                .and(customerEquals(query.getCustomerId()))
+                .and(keywordContains(query.getKeyword()))
+                .and(numberContains(query.getQuotationNumber()))
+                .and(statusEquals(query.getStatus()))
+                .and(createdAtFrom(query.getFromDate()))
+                .and(createdAtTo(query.getToDate()));
+    }
+
     private static Specification<QuotationEntity> customerEquals(String customerId) {
         return (root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.equal(root.get("customer").get("id"), customerId);
     }
@@ -30,6 +41,16 @@ public final class QuotationSpecifications {
                 return criteriaBuilder.conjunction();
             }
             String normalized = "%" + keyword.trim().toLowerCase() + "%";
+            return criteriaBuilder.like(criteriaBuilder.lower(root.get("quotationNumber")), normalized);
+        };
+    }
+
+    private static Specification<QuotationEntity> numberContains(String quotationNumber) {
+        return (root, criteriaQuery, criteriaBuilder) -> {
+            if (!StringUtils.hasText(quotationNumber)) {
+                return criteriaBuilder.conjunction();
+            }
+            String normalized = "%" + quotationNumber.trim().toLowerCase() + "%";
             return criteriaBuilder.like(criteriaBuilder.lower(root.get("quotationNumber")), normalized);
         };
     }

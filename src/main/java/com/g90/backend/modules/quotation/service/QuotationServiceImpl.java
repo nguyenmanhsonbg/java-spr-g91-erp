@@ -39,6 +39,8 @@ import com.g90.backend.modules.quotation.dto.QuotationFormInitResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationHistoryResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationItemRequest;
 import com.g90.backend.modules.quotation.dto.QuotationItemResponse;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListQuery;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewByIdResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationSaveResponseData;
@@ -88,6 +90,13 @@ public class QuotationServiceImpl implements QuotationService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final Set<String> BLOCKED_PROJECT_STATUSES = Set.of("INACTIVE", "LOCKED", "CLOSED");
     private static final Set<String> CUSTOMER_QUOTATION_SORT_FIELDS = Set.of(
+            "createdAt",
+            "quotationNumber",
+            "totalAmount",
+            "validUntil",
+            "status"
+    );
+    private static final Set<String> MANAGEMENT_QUOTATION_SORT_FIELDS = Set.of(
             "createdAt",
             "quotationNumber",
             "totalAmount",
@@ -401,6 +410,55 @@ public class QuotationServiceImpl implements QuotationService {
                 quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.PENDING.name()),
                 quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.CONVERTED.name()),
                 quotationRepository.countByCustomer_IdAndStatusIgnoreCase(customer.getId(), QuotationStatus.REJECTED.name())
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public QuotationManagementListResponseData getQuotations(QuotationManagementListQuery query) {
+        AuthenticatedUser currentUser = currentUserProvider.getCurrentUser();
+        String scopedCustomerId = null;
+        if (RoleName.CUSTOMER.name().equalsIgnoreCase(currentUser.role())) {
+            scopedCustomerId = loadCurrentCustomer().getId();
+        } else if (!hasAnyRole(currentUser.role(), RoleName.ACCOUNTANT, RoleName.OWNER)) {
+            throw new ForbiddenOperationException("You do not have permission to perform this action");
+        }
+
+        Page<QuotationEntity> quotations = quotationRepository.findAll(
+                QuotationSpecifications.byQuery(query, scopedCustomerId),
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizePageSize(query.getPageSize()), buildManagementQuotationSort(query))
+        );
+
+        List<QuotationManagementListResponseData.Item> items = quotations.stream()
+                .map(quotation -> new QuotationManagementListResponseData.Item(
+                        quotation.getId(),
+                        quotation.getQuotationNumber(),
+                        quotation.getCustomer() == null ? null : quotation.getCustomer().getId(),
+                        quotation.getCustomer() == null ? null : quotation.getCustomer().getCompanyName(),
+                        quotation.getTotalAmount(),
+                        resolveQuotationDisplayStatus(quotation),
+                        quotation.getValidUntil(),
+                        quotation.getCreatedAt(),
+                        RoleName.CUSTOMER.name().equalsIgnoreCase(currentUser.role()) && isDraft(quotation),
+                        hasAnyRole(currentUser.role(), RoleName.ACCOUNTANT, RoleName.OWNER) && canCreateContract(quotation)
+                ))
+                .toList();
+
+        return new QuotationManagementListResponseData(
+                items,
+                PaginationResponse.builder()
+                        .page(quotations.getNumber() + 1)
+                        .pageSize(quotations.getSize())
+                        .totalItems(quotations.getTotalElements())
+                        .totalPages(quotations.getTotalPages())
+                        .build(),
+                new QuotationManagementListResponseData.Filters(
+                        normalizeNullable(query.getQuotationNumber()),
+                        normalizeNullable(scopedCustomerId != null ? scopedCustomerId : query.getCustomerId()),
+                        normalizeNullable(query.getStatus()),
+                        query.getFromDate(),
+                        query.getToDate()
+                )
         );
     }
 
@@ -874,6 +932,22 @@ public class QuotationServiceImpl implements QuotationService {
         String sortBy = CUSTOMER_QUOTATION_SORT_FIELDS.contains(query.getSortBy()) ? query.getSortBy() : "createdAt";
         Sort.Direction direction = "asc".equalsIgnoreCase(query.getSortDir()) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return Sort.by(direction, sortBy);
+    }
+
+    private Sort buildManagementQuotationSort(QuotationManagementListQuery query) {
+        String sortBy = MANAGEMENT_QUOTATION_SORT_FIELDS.contains(query.getSortBy()) ? query.getSortBy() : "createdAt";
+        Sort.Direction direction = "asc".equalsIgnoreCase(query.getSortDir()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return Sort.by(direction, sortBy);
+    }
+
+    private String resolveQuotationDisplayStatus(QuotationEntity quotation) {
+        if (quotation.getValidUntil() != null
+                && quotation.getValidUntil().isBefore(LocalDate.now(APP_ZONE))
+                && !QuotationStatus.CONVERTED.name().equalsIgnoreCase(quotation.getStatus())
+                && !QuotationStatus.REJECTED.name().equalsIgnoreCase(quotation.getStatus())) {
+            return "EXPIRED";
+        }
+        return quotation.getStatus();
     }
 
     private String generateQuotationNumber() {

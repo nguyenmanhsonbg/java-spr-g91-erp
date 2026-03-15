@@ -4,6 +4,8 @@ import com.g90.backend.config.OpenApiConfig;
 import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.quotation.dto.QuotationDetailResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationHistoryResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListQuery;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewByIdResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationSaveResponseData;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -54,6 +57,11 @@ public class QuotationController {
     @PostMapping("/submit")
     public ApiResponse<QuotationSubmitResponseData> submitQuotation(@Valid @RequestBody QuotationSubmitActionRequest request) {
         return ApiResponse.success("Quotation submitted successfully", quotationService.submitQuotation(request));
+    }
+
+    @GetMapping
+    public ApiResponse<QuotationManagementListResponseData> getQuotations(@Valid @ModelAttribute QuotationManagementListQuery query) {
+        return ApiResponse.success("Quotation list fetched successfully", quotationService.getQuotations(query));
     }
 
     @GetMapping("/{quotationId}/preview")

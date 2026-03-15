@@ -7,6 +7,8 @@ import com.g90.backend.modules.quotation.dto.QuotationDetailResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationFormInitQuery;
 import com.g90.backend.modules.quotation.dto.QuotationFormInitResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationHistoryResponseData;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListQuery;
+import com.g90.backend.modules.quotation.dto.QuotationManagementListResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewByIdResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationPreviewResponseData;
 import com.g90.backend.modules.quotation.dto.QuotationSaveResponseData;
@@ -35,6 +37,8 @@ public interface QuotationService {
     CustomerQuotationListResponseData getMyQuotations(CustomerQuotationListQuery query);
 
     CustomerQuotationSummaryResponseData getMyQuotationSummary();
+
+    QuotationManagementListResponseData getQuotations(QuotationManagementListQuery query);
 
     QuotationDetailResponseData getQuotationDetail(String quotationId);
 
