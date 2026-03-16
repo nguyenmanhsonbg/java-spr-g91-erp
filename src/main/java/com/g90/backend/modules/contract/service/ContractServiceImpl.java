@@ -297,7 +297,7 @@ public class ContractServiceImpl implements ContractService {
                                 quotation.getNote()
                         ),
                 new ContractFormInitResponseData.DefaultsData(
-                        STANDARD_PAYMENT_TERMS,
+                        resolveCustomerPaymentTerms(customer),
                         customer.getAddress(),
                         quotation == null ? null : quotation.getDeliveryRequirement()
                 ),
@@ -857,7 +857,9 @@ public class ContractServiceImpl implements ContractService {
                 depositPercentage,
                 depositAmount,
                 warnings,
-                normalizeNullable(request.getPaymentTerms()),
+                StringUtils.hasText(request.getPaymentTerms())
+                        ? normalizeNullable(request.getPaymentTerms())
+                        : resolveCustomerPaymentTerms(customer),
                 normalizeNullable(request.getDeliveryAddress()),
                 normalizeNullable(request.getDeliveryTerms()),
                 normalizeNullable(request.getNote()),
@@ -1085,6 +1087,13 @@ public class ContractServiceImpl implements ContractService {
             return new BigDecimal("20.00");
         }
         return new BigDecimal("30.00");
+    }
+
+    private String resolveCustomerPaymentTerms(CustomerProfileEntity customer) {
+        if (customer != null && StringUtils.hasText(customer.getPaymentTerms())) {
+            return customer.getPaymentTerms().trim();
+        }
+        return STANDARD_PAYMENT_TERMS;
     }
 
     private ContractEntity loadAccessibleContract(String contractId, AuthenticatedUser currentUser) {

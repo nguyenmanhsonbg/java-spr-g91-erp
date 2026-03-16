@@ -280,7 +280,7 @@ public class QuotationServiceImpl implements QuotationService {
     @Override
     @Transactional(readOnly = true)
     public QuotationPreviewByIdResponseData getQuotationPreview(String quotationId) {
-        QuotationEntity quotation = loadOwnedQuotation(quotationId);
+        QuotationEntity quotation = loadAccessibleQuotation(quotationId, currentUserProvider.getCurrentUser());
         PersistedQuotationSummary summary = calculatePersistedSummary(quotation);
         PromotionEntity promotion = findActivePromotion(quotation.getPromotionCode());
 
@@ -689,7 +689,10 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     private List<PriceListEntity> resolveApplicablePriceLists(CustomerProfileEntity customer) {
-        String customerGroup = normalizeNullable(customer.getCustomerType());
+        String customerGroup = normalizeNullable(customer.getPriceGroup());
+        if (!StringUtils.hasText(customerGroup)) {
+            customerGroup = normalizeNullable(customer.getCustomerType());
+        }
         if (!StringUtils.hasText(customerGroup)) {
             return List.of();
         }
@@ -929,13 +932,19 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     private Sort buildCustomerQuotationSort(CustomerQuotationListQuery query) {
-        String sortBy = CUSTOMER_QUOTATION_SORT_FIELDS.contains(query.getSortBy()) ? query.getSortBy() : "createdAt";
+        String requestedSortBy = normalizeNullable(query.getSortBy());
+        String sortBy = StringUtils.hasText(requestedSortBy) && CUSTOMER_QUOTATION_SORT_FIELDS.contains(requestedSortBy)
+                ? requestedSortBy
+                : "createdAt";
         Sort.Direction direction = "asc".equalsIgnoreCase(query.getSortDir()) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return Sort.by(direction, sortBy);
     }
 
     private Sort buildManagementQuotationSort(QuotationManagementListQuery query) {
-        String sortBy = MANAGEMENT_QUOTATION_SORT_FIELDS.contains(query.getSortBy()) ? query.getSortBy() : "createdAt";
+        String requestedSortBy = normalizeNullable(query.getSortBy());
+        String sortBy = StringUtils.hasText(requestedSortBy) && MANAGEMENT_QUOTATION_SORT_FIELDS.contains(requestedSortBy)
+                ? requestedSortBy
+                : "createdAt";
         Sort.Direction direction = "asc".equalsIgnoreCase(query.getSortDir()) ? Sort.Direction.ASC : Sort.Direction.DESC;
         return Sort.by(direction, sortBy);
     }

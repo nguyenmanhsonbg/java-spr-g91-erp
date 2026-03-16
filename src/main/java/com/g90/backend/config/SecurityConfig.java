@@ -69,6 +69,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(PUBLIC_API_WHITELIST).permitAll()
+                        .requestMatchers("/api/customers/**")
+                        .hasRole("ACCOUNTANT")
                         .requestMatchers("/api/customer/**")
                         .hasRole("CUSTOMER")
                         .requestMatchers(HttpMethod.GET, "/api/contracts/form-init")

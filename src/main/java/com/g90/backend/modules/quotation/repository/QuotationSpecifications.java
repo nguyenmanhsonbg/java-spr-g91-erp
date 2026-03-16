@@ -32,7 +32,12 @@ public final class QuotationSpecifications {
     }
 
     private static Specification<QuotationEntity> customerEquals(String customerId) {
-        return (root, criteriaQuery, criteriaBuilder) -> criteriaBuilder.equal(root.get("customer").get("id"), customerId);
+        return (root, criteriaQuery, criteriaBuilder) -> {
+            if (!StringUtils.hasText(customerId)) {
+                return criteriaBuilder.conjunction();
+            }
+            return criteriaBuilder.equal(root.get("customer").get("id"), customerId.trim());
+        };
     }
 
     private static Specification<QuotationEntity> keywordContains(String keyword) {

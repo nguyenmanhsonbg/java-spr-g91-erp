@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,6 +29,9 @@ public class CustomerProfileEntity {
     @Id
     @Column(name = "id", length = 36, nullable = false)
     private String id;
+
+    @Column(name = "customer_code", length = 50, unique = true)
+    private String customerCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -54,14 +58,23 @@ public class CustomerProfileEntity {
     @Column(name = "customer_type", length = 50)
     private String customerType;
 
+    @Column(name = "price_group", length = 50)
+    private String priceGroup;
+
     @Column(name = "credit_limit", precision = 18, scale = 2)
     private BigDecimal creditLimit;
+
+    @Column(name = "payment_terms", length = 255)
+    private String paymentTerms;
 
     @Column(name = "status", length = 20)
     private String status;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     public void prePersist() {
@@ -76,6 +89,20 @@ public class CustomerProfileEntity {
         }
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);
+        }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+        if (!StringUtils.hasText(priceGroup) && StringUtils.hasText(customerType)) {
+            priceGroup = customerType.trim();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now(APP_ZONE);
+        if (!StringUtils.hasText(priceGroup) && StringUtils.hasText(customerType)) {
+            priceGroup = customerType.trim();
         }
     }
 }

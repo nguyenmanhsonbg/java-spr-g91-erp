@@ -41,12 +41,13 @@ class JpaContractPricingGateway implements ContractPricingGateway {
     @Override
     public Map<String, PricingData> resolveBasePrices(CustomerProfileEntity customer, Collection<String> productIds) {
         Map<String, PricingData> pricingData = new LinkedHashMap<>();
-        if (customer == null || !StringUtils.hasText(customer.getCustomerType()) || productIds == null || productIds.isEmpty()) {
+        String customerGroup = resolveCustomerGroup(customer);
+        if (!StringUtils.hasText(customerGroup) || productIds == null || productIds.isEmpty()) {
             return pricingData;
         }
 
         List<PriceListEntity> priceLists = priceListRepository.findApplicablePriceLists(
-                customer.getCustomerType().trim(),
+                customerGroup,
                 LocalDate.now(APP_ZONE)
         );
         if (priceLists.isEmpty()) {
@@ -67,5 +68,18 @@ class JpaContractPricingGateway implements ContractPricingGateway {
             );
         }
         return pricingData;
+    }
+
+    private String resolveCustomerGroup(CustomerProfileEntity customer) {
+        if (customer == null) {
+            return null;
+        }
+        if (StringUtils.hasText(customer.getPriceGroup())) {
+            return customer.getPriceGroup().trim();
+        }
+        if (StringUtils.hasText(customer.getCustomerType())) {
+            return customer.getCustomerType().trim();
+        }
+        return null;
     }
 }
