@@ -1,0 +1,55 @@
+Customer credit limit rule - current implementation
+
+Scope
+- This rule is currently enforced in the Contract module.
+- Source implementation:
+  - src/main/java/com/g90/backend/modules/contract/integration/ContractCreditGateway.java
+  - src/main/java/com/g90/backend/modules/contract/service/ContractServiceImpl.java
+  - src/main/java/com/g90/backend/exception/ContractCreditLimitExceededException.java
+
+Data source
+- creditLimit: read from customers.credit_limit
+- currentDebt: calculated from unpaid invoices
+  - total outstanding = (invoice.total_amount + vat_amount) - allocated payments
+  - only invoices with status not equal to PAID are counted
+
+Computed values
+- availableCredit = creditLimit - currentDebt
+- projectedDebt = currentDebt + contract.totalAmount
+
+Exceeded condition
+- Credit limit is enforced only when creditLimit > 0
+- If projectedDebt > creditLimit, the contract is considered over limit
+
+Behavior by API flow
+- Preview contract:
+  - does not block
+  - returns warning: "Projected debt exceeds current credit limit"
+- Create contract:
+  - blocks when projectedDebt > creditLimit
+  - throws CONTRACT_CREDIT_LIMIT_EXCEEDED
+- Update draft contract:
+  - blocks with the same rule as create
+- Submit contract:
+  - checks again before submission
+  - blocks when projectedDebt > creditLimit
+
+Special case
+- If creditLimit <= 0, the current implementation treats the customer as UNLIMITED for enforcement purposes
+
+Related display / risk behavior
+- approval review includes a reason when projected debt exceeds available credit
+- credit risk level:
+  - UNLIMITED if creditLimit <= 0
+  - HIGH if projectedDebt > creditLimit
+  - MEDIUM if projectedDebt uses at least 80% of creditLimit
+  - LOW otherwise
+
+Not implemented currently
+- No separate approval workflow for over-credit contracts
+- No partial tolerance or soft-threshold behavior
+- No distinction between create-draft allowed and submit blocked; current rule blocks create/update and submit
+
+Current exception
+- code: CONTRACT_CREDIT_LIMIT_EXCEEDED
+- message: Customer credit limit would be exceeded

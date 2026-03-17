@@ -302,13 +302,11 @@ Create a quotation in `DRAFT` status.
   "items": [
     {
       "productId": "prd_001",
-      "quantity": 30,
-      "unitPrice": 32000
+      "quantity": 30
     },
     {
       "productId": "prd_002",
-      "quantity": 5,
-      "unitPrice": 765000
+      "quantity": 5
     }
   ]
 }
@@ -363,6 +361,8 @@ Create a quotation in `DRAFT` status.
 #### Extension note
 `metadata.deliveryRequirements` and `metadata.promotionCode` require schema extension or separate storage.
 
+`items[].unitPrice` is not part of the quotation request contract; preview/save/submit use server-side pricing based on active price lists.
+
 ---
 
 ### API 3.2.4 — Submit quotation
@@ -388,13 +388,11 @@ Alternative direct-submit request:
   "items": [
     {
       "productId": "prd_001",
-      "quantity": 30,
-      "unitPrice": 32000
+      "quantity": 30
     },
     {
       "productId": "prd_002",
-      "quantity": 5,
-      "unitPrice": 765000
+      "quantity": 5
     }
   ]
 }
@@ -517,13 +515,11 @@ Update a quotation while it is still `DRAFT`.
   "items": [
     {
       "productId": "prd_001",
-      "quantity": 25,
-      "unitPrice": 32000
+      "quantity": 25
     },
     {
       "productId": "prd_002",
-      "quantity": 6,
-      "unitPrice": 765000
+      "quantity": 6
     }
   ]
 }

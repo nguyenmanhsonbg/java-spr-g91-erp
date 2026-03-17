@@ -156,7 +156,6 @@ Moi item gom:
 
 - `productId`
 - `quantity`
-- `unitPrice` neu frontend cho phep gui gia du kien
 
 Business rule:
 

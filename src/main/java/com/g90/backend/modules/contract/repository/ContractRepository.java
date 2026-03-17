@@ -23,12 +23,7 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
             "customer.user",
             "quotation",
             "items",
-            "items.product",
-            "versions",
-            "approvals",
-            "statusHistory",
-            "documents",
-            "trackingEvents"
+            "items.product"
     })
     @Query("select distinct c from ContractEntity c where c.id = :id")
     Optional<ContractEntity> findDetailedById(@Param("id") String id);
@@ -38,12 +33,7 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
             "customer.user",
             "quotation",
             "items",
-            "items.product",
-            "versions",
-            "approvals",
-            "statusHistory",
-            "documents",
-            "trackingEvents"
+            "items.product"
     })
     @Query("select distinct c from ContractEntity c where c.id = :id and c.customer.id = :customerId")
     Optional<ContractEntity> findDetailedByIdAndCustomer_Id(@Param("id") String id, @Param("customerId") String customerId);

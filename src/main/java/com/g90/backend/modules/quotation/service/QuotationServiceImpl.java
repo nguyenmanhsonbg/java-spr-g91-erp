@@ -603,7 +603,7 @@ public class QuotationServiceImpl implements QuotationService {
             validateProduct(product);
 
             BigDecimal quantity = normalizeMoney(itemRequest.getQuantity());
-            BigDecimal unitPrice = resolveUnitPrice(itemRequest, unitPriceByProductId, pricingRequired);
+            BigDecimal unitPrice = resolveUnitPrice(itemRequest.getProductId().trim(), unitPriceByProductId, pricingRequired);
             BigDecimal totalPrice = unitPrice == null
                     ? null
                     : quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
@@ -647,6 +647,16 @@ public class QuotationServiceImpl implements QuotationService {
         }
         if (items.size() > 20) {
             throw RequestValidationException.singleError("items", "Quotation can contain at most 20 items");
+        }
+        for (int index = 0; index < items.size(); index++) {
+            QuotationItemRequest item = items.get(index);
+            if (item != null && !item.getUnexpectedFields().isEmpty()) {
+                String unsupportedField = item.getUnexpectedFields().iterator().next();
+                throw RequestValidationException.singleError(
+                        "items[" + index + "]." + unsupportedField,
+                        "Field is not allowed in quotation item request"
+                );
+            }
         }
     }
 
@@ -716,17 +726,13 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     private BigDecimal resolveUnitPrice(
-            QuotationItemRequest itemRequest,
+            String productId,
             Map<String, BigDecimal> unitPriceByProductId,
             boolean pricingRequired
     ) {
-        String productId = itemRequest.getProductId().trim();
         BigDecimal resolved = unitPriceByProductId.get(productId);
         if (resolved != null) {
             return resolved;
-        }
-        if (itemRequest.getUnitPrice() != null) {
-            return normalizeMoney(itemRequest.getUnitPrice());
         }
         if (pricingRequired) {
             throw new QuotationPricingNotFoundException(productId);

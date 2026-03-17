@@ -1,11 +1,13 @@
 package com.g90.backend.modules.quotation.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.g90.backend.exception.RequestValidationException;
 import com.g90.backend.modules.account.entity.RoleEntity;
 import com.g90.backend.modules.account.entity.RoleName;
 import com.g90.backend.modules.account.entity.UserAccountEntity;
@@ -18,6 +20,7 @@ import com.g90.backend.modules.product.entity.ProductStatus;
 import com.g90.backend.modules.product.repository.ProductRepository;
 import com.g90.backend.modules.promotion.repository.PromotionRepository;
 import com.g90.backend.modules.quotation.dto.QuotationManagementListQuery;
+import com.g90.backend.modules.quotation.dto.QuotationSubmitRequest;
 import com.g90.backend.modules.quotation.entity.ProjectEntity;
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import com.g90.backend.modules.quotation.entity.QuotationItemEntity;
@@ -139,6 +142,32 @@ class QuotationServiceImplTest {
         assertThat(response.quotation().id()).isEqualTo("quotation-1");
         assertThat(response.items()).hasSize(1);
         assertThat(response.summary().totalAmount()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void previewQuotationRejectsClientProvidedUnitPrice() throws Exception {
+        authenticateAs(RoleName.CUSTOMER, "customer-user");
+        UserAccountEntity user = user("customer-user", RoleName.CUSTOMER);
+        CustomerProfileEntity customer = customer("customer-1", "Customer A");
+
+        when(userAccountRepository.findWithRoleById("customer-user")).thenReturn(Optional.of(user));
+        when(customerProfileRepository.findByUser_Id("customer-user")).thenReturn(Optional.of(customer));
+
+        QuotationSubmitRequest request = objectMapper.readValue("""
+                {
+                  "items": [
+                    {
+                      "productId": "product-1",
+                      "quantity": 10,
+                      "unitPrice": 10000
+                    }
+                  ]
+                }
+                """, QuotationSubmitRequest.class);
+
+        assertThatThrownBy(() -> quotationService.previewQuotation(request))
+                .isInstanceOf(RequestValidationException.class)
+                .hasMessageContaining("Invalid request data");
     }
 
     private void authenticateAs(RoleName roleName, String userId) {
