@@ -1,7 +1,6 @@
 package com.g90.backend.modules.contract.integration;
 
 import com.g90.backend.modules.contract.entity.ContractDocumentEntity;
-import org.springframework.stereotype.Component;
 
 public interface ContractEmailGateway {
 
@@ -11,7 +10,6 @@ public interface ContractEmailGateway {
     }
 }
 
-@Component
 class NoopContractEmailGateway implements ContractEmailGateway {
 
     @Override

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.g90.backend.exception.AccountLoginBlockedException;
 import com.g90.backend.exception.CurrentPasswordIncorrectException;
+import com.g90.backend.exception.EmailVerificationRequiredException;
 import com.g90.backend.exception.EmailAlreadyExistsException;
 import com.g90.backend.exception.InvalidCredentialsException;
 import com.g90.backend.exception.PasswordMismatchException;
@@ -18,15 +19,21 @@ import com.g90.backend.modules.account.entity.UserAccountEntity;
 import com.g90.backend.modules.account.repository.AuditLogRepository;
 import com.g90.backend.modules.account.repository.RoleRepository;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
+import com.g90.backend.modules.customer.entity.CustomerStatus;
+import com.g90.backend.modules.email.service.NotificationEmailService;
 import com.g90.backend.modules.user.dto.ChangePasswordRequest;
 import com.g90.backend.modules.user.dto.ForgotPasswordRequest;
 import com.g90.backend.modules.user.dto.LoginRequest;
 import com.g90.backend.modules.user.dto.LoginResponseData;
+import com.g90.backend.modules.user.dto.RegistrationVerificationResponseData;
 import com.g90.backend.modules.user.dto.RegisterRequest;
 import com.g90.backend.modules.user.dto.RegisterResponseData;
+import com.g90.backend.modules.user.dto.ResendVerificationCodeRequest;
+import com.g90.backend.modules.user.dto.ResendVerificationCodeResponseData;
 import com.g90.backend.modules.user.dto.ResetPasswordRequest;
 import com.g90.backend.modules.user.dto.UpdateProfileRequest;
 import com.g90.backend.modules.user.dto.UserProfileResponse;
+import com.g90.backend.modules.user.dto.VerifyRegistrationRequest;
 import com.g90.backend.modules.user.entity.CustomerProfileEntity;
 import com.g90.backend.modules.user.entity.PasswordResetTokenEntity;
 import com.g90.backend.modules.user.mapper.UserManagementMapper;
@@ -38,11 +45,14 @@ import com.g90.backend.security.CurrentUserProvider;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -50,6 +60,7 @@ import org.springframework.util.StringUtils;
 public class UserManagementServiceImpl implements UserManagementService {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final int PASSWORD_RESET_EXPIRE_MINUTES = 30;
 
     private final UserAccountRepository userAccountRepository;
     private final RoleRepository roleRepository;
@@ -61,13 +72,15 @@ public class UserManagementServiceImpl implements UserManagementService {
     private final ObjectMapper objectMapper;
     private final AccessTokenService accessTokenService;
     private final CurrentUserProvider currentUserProvider;
+    private final RegistrationVerificationService registrationVerificationService;
+    private final NotificationEmailService notificationEmailService;
 
     @Override
     @Transactional
     public RegisterResponseData register(RegisterRequest request) {
         validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword(), "confirmPassword");
 
-        String normalizedEmail = normalize(request.getEmail());
+        String normalizedEmail = normalizeEmail(request.getEmail());
         if (userAccountRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
             throw new EmailAlreadyExistsException();
         }
@@ -80,7 +93,8 @@ public class UserManagementServiceImpl implements UserManagementService {
         user.setFullName(normalize(request.getFullName()));
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setStatus(AccountStatus.ACTIVE.name());
+        user.setStatus(AccountStatus.PENDING_VERIFICATION.name());
+        user.setEmailVerified(Boolean.FALSE);
 
         UserAccountEntity savedUser = userAccountRepository.save(user);
 
@@ -89,17 +103,46 @@ public class UserManagementServiceImpl implements UserManagementService {
         customerProfile.setContactPerson(savedUser.getFullName());
         customerProfile.setEmail(savedUser.getEmail());
         customerProfile.setCreditLimit(BigDecimal.ZERO.setScale(2));
-        customerProfile.setStatus(AccountStatus.ACTIVE.name());
+        customerProfile.setStatus(CustomerStatus.PENDING_VERIFICATION.name());
         customerProfileRepository.save(customerProfile);
 
+        RegistrationVerificationService.VerificationDispatch verificationDispatch =
+                registrationVerificationService.issueForNewRegistration(savedUser);
+        scheduleVerificationEmailDispatch(verificationDispatch);
+
         logAudit("REGISTER_USER", savedUser.getId(), null, userManagementMapper.toProfile(savedUser), savedUser.getId());
-        return userManagementMapper.toRegisterData(savedUser);
+        return userManagementMapper.toRegisterData(savedUser, verificationDispatch.expireMinutes());
+    }
+
+    @Override
+    @Transactional
+    public RegistrationVerificationResponseData verifyRegistration(VerifyRegistrationRequest request) {
+        RegistrationVerificationService.VerificationCompletion verificationCompletion =
+                registrationVerificationService.verify(request.getEmail(), request.getVerificationCode());
+
+        UserAccountEntity user = userAccountRepository.findWithRoleById(verificationCompletion.userId())
+                .orElseThrow(InvalidCredentialsException::new);
+        logAudit("VERIFY_REGISTRATION_SUCCESS", user.getId(), null, userManagementMapper.toProfile(user), user.getId());
+        return userManagementMapper.toRegistrationVerificationData(user);
+    }
+
+    @Override
+    @Transactional
+    public ResendVerificationCodeResponseData resendVerificationCode(ResendVerificationCodeRequest request) {
+        RegistrationVerificationService.VerificationDispatch verificationDispatch =
+                registrationVerificationService.resend(request.getEmail());
+
+        UserAccountEntity user = userAccountRepository.findWithRoleById(verificationDispatch.userId())
+                .orElseThrow(InvalidCredentialsException::new);
+        scheduleVerificationEmailDispatch(verificationDispatch);
+        logAudit("RESEND_REGISTRATION_VERIFICATION", user.getId(), null, null, user.getId());
+        return userManagementMapper.toResendVerificationCodeData(user, verificationDispatch.expireMinutes());
     }
 
     @Override
     @Transactional
     public LoginResponseData login(LoginRequest request) {
-        String normalizedEmail = normalize(request.getEmail());
+        String normalizedEmail = normalizeEmail(request.getEmail());
         UserAccountEntity user = userAccountRepository.findWithRoleByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(InvalidCredentialsException::new);
 
@@ -144,15 +187,23 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
-        String normalizedEmail = normalize(request.getEmail());
+        String normalizedEmail = normalizeEmail(request.getEmail());
         userAccountRepository.findWithRoleByEmailIgnoreCase(normalizedEmail).ifPresent(user -> {
             passwordResetTokenRepository.findByUser_IdAndUsedFalse(user.getId()).forEach(existingToken -> existingToken.setUsed(Boolean.TRUE));
 
             PasswordResetTokenEntity resetToken = new PasswordResetTokenEntity();
             resetToken.setUser(user);
             resetToken.setToken(generateOpaqueToken());
-            resetToken.setExpiredAt(LocalDateTime.now(APP_ZONE).plusMinutes(30));
+            resetToken.setExpiredAt(LocalDateTime.now(APP_ZONE).plusMinutes(PASSWORD_RESET_EXPIRE_MINUTES));
             passwordResetTokenRepository.save(resetToken);
+            executeAfterCommit(() -> notificationEmailService.sendPasswordResetEmail(
+                    user.getEmail(),
+                    user.getFullName(),
+                    new NotificationEmailService.PasswordResetEmailPayload(
+                            resetToken.getToken(),
+                            PASSWORD_RESET_EXPIRE_MINUTES
+                    )
+            ));
 
             logAudit(
                     "REQUEST_RESET_PASSWORD",
@@ -228,10 +279,41 @@ public class UserManagementServiceImpl implements UserManagementService {
     }
 
     private void validateLoginStatus(UserAccountEntity user) {
+        if (Boolean.FALSE.equals(user.getEmailVerified())
+                || AccountStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(user.getStatus())) {
+            throw new EmailVerificationRequiredException();
+        }
         if (AccountStatus.ACTIVE.name().equalsIgnoreCase(user.getStatus())) {
             return;
         }
         throw new AccountLoginBlockedException(user.getStatus());
+    }
+
+    private void scheduleVerificationEmailDispatch(RegistrationVerificationService.VerificationDispatch verificationDispatch) {
+        Runnable dispatchTask = () -> notificationEmailService.sendRegistrationVerificationEmail(
+                verificationDispatch.email(),
+                verificationDispatch.recipientName(),
+                verificationDispatch.verificationCode(),
+                verificationDispatch.expireMinutes()
+        );
+
+        executeAfterCommit(dispatchTask);
+    }
+
+    private void executeAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                // Dispatch after commit so SMTP work only starts when registration state is durable.
+                // If delivery later fails asynchronously, the account remains pending and can resend safely.
+                task.run();
+            }
+        });
     }
 
     private void syncCustomerProfile(CustomerProfileEntity customer, UserAccountEntity user) {
@@ -271,6 +353,10 @@ public class UserManagementServiceImpl implements UserManagementService {
 
     private String normalize(String value) {
         return value.trim();
+    }
+
+    private String normalizeEmail(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeNullable(String value) {

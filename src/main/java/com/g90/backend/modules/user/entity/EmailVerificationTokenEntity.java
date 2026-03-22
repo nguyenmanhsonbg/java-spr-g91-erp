@@ -1,5 +1,6 @@
-package com.g90.backend.modules.account.entity;
+package com.g90.backend.modules.user.entity;
 
+import com.g90.backend.modules.account.entity.UserAccountEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -19,8 +20,8 @@ import org.springframework.util.StringUtils;
 @Getter
 @Setter
 @Entity
-@Table(name = "users")
-public class UserAccountEntity {
+@Table(name = "email_verification_tokens")
+public class EmailVerificationTokenEntity {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -29,46 +30,31 @@ public class UserAccountEntity {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id")
-    private RoleEntity role;
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserAccountEntity user;
 
-    @Column(name = "full_name", length = 255)
-    private String fullName;
+    @Column(name = "code_hash", length = 255, nullable = false)
+    private String codeHash;
 
-    @Column(name = "email", length = 255, unique = true)
-    private String email;
+    @Column(name = "expired_at", nullable = false)
+    private LocalDateTime expiredAt;
 
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
+    @Column(name = "consumed_at")
+    private LocalDateTime consumedAt;
 
-    @Column(name = "phone", length = 50)
-    private String phone;
+    @Column(name = "invalidated_at")
+    private LocalDateTime invalidatedAt;
 
-    @Column(name = "address", length = 500)
-    private String address;
-
-    @Column(name = "status", length = 20)
-    private String status;
-
-    @Column(name = "email_verified", nullable = false)
-    private Boolean emailVerified;
-
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     public void prePersist() {
         if (!StringUtils.hasText(id)) {
             id = UUID.randomUUID().toString();
-        }
-        if (!StringUtils.hasText(status)) {
-            status = AccountStatus.ACTIVE.name();
-        }
-        if (emailVerified == null) {
-            emailVerified = Boolean.TRUE;
         }
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);

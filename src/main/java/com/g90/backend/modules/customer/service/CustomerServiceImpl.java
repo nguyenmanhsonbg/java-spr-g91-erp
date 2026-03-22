@@ -410,7 +410,7 @@ public class CustomerServiceImpl implements CustomerService {
         try {
             return CustomerStatus.from(value).name();
         } catch (Exception exception) {
-            throw RequestValidationException.singleError("status", "status must be ACTIVE or INACTIVE");
+            throw RequestValidationException.singleError("status", "status must be ACTIVE, PENDING_VERIFICATION, or INACTIVE");
         }
     }
 

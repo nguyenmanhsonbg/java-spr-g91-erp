@@ -20,6 +20,7 @@ import com.g90.backend.modules.account.repository.AuditLogRepository;
 import com.g90.backend.modules.contract.dto.ContractApprovalDecisionRequest;
 import com.g90.backend.modules.contract.dto.ContractFormInitQuery;
 import com.g90.backend.modules.contract.dto.ContractCreateRequest;
+import com.g90.backend.modules.contract.dto.ContractDocumentEmailRequest;
 import com.g90.backend.modules.contract.dto.ContractItemRequest;
 import com.g90.backend.modules.contract.dto.PendingContractApprovalListQuery;
 import com.g90.backend.modules.contract.dto.ContractSubmitRequest;
@@ -27,6 +28,7 @@ import com.g90.backend.modules.contract.dto.ContractUpdateRequest;
 import com.g90.backend.modules.contract.dto.CreateContractFromQuotationRequest;
 import com.g90.backend.modules.contract.entity.ContractApprovalEntity;
 import com.g90.backend.modules.contract.entity.ContractApprovalStatus;
+import com.g90.backend.modules.contract.entity.ContractDocumentEntity;
 import com.g90.backend.modules.contract.entity.ContractEntity;
 import com.g90.backend.modules.contract.entity.ContractItemEntity;
 import com.g90.backend.modules.contract.entity.ContractPendingAction;
@@ -204,6 +206,7 @@ class ContractServiceImplTest {
         assertThat(response.contract().status()).isEqualTo(ContractStatus.DRAFT.name());
         assertThat(response.contract().totalAmount()).isEqualByComparingTo("9000.00");
         assertThat(response.items()).hasSize(1);
+        verify(contractNotificationGateway).notifyContractCreated(any(), anyString());
     }
 
     @Test
@@ -441,6 +444,33 @@ class ContractServiceImplTest {
 
         assertThat(response.decision()).isEqualTo("APPROVED");
         assertThat(response.contractStatus()).isEqualTo(ContractStatus.SUBMITTED.name());
+        verify(contractNotificationGateway).notifyContractApproved(any(), anyString());
+    }
+
+    @Test
+    void emailDocumentUsesEmailGatewayAndUpdatesTimestamp() {
+        authenticateAs(RoleName.ACCOUNTANT, "user-accountant");
+        CustomerProfileEntity customer = customer("customer-1", "Customer A");
+        ProductEntity product = product("product-1", "SP001");
+        ContractEntity contract = savedContract("contract-1", customer, product);
+        ContractDocumentEntity document = new ContractDocumentEntity();
+        document.setId("document-1");
+        document.setContract(contract);
+        document.setDocumentType("SALES_CONTRACT");
+        document.setFileName("SC-CT-20260315-0001.pdf");
+        contract.setDocuments(new ArrayList<>(List.of(document)));
+
+        when(contractRepository.findDetailedById("contract-1")).thenReturn(Optional.of(contract));
+        when(contractEmailGateway.sendDocument(document, "recipient@example.com"))
+                .thenReturn(new ContractEmailGateway.EmailResult(true, "queued"));
+
+        ContractDocumentEmailRequest request = new ContractDocumentEmailRequest();
+        request.setRecipientEmail("recipient@example.com");
+
+        var response = contractService.emailDocument("contract-1", "document-1", request);
+
+        assertThat(response.emailedAt()).isNotNull();
+        verify(contractEmailGateway).sendDocument(document, "recipient@example.com");
     }
 
     @Test

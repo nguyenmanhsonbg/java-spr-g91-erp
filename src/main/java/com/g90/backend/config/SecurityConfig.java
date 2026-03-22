@@ -35,6 +35,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_API_WHITELIST = {
             "/api/products/**",
             "/api/auth/register",
+            "/api/auth/verify-registration",
+            "/api/auth/resend-verification-code",
             "/api/auth/login",
             "/api/auth/logout",
             "/api/auth/forgot-password",

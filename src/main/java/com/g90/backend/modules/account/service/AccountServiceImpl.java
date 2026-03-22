@@ -199,7 +199,7 @@ public class AccountServiceImpl implements AccountService {
         try {
             return AccountStatus.from(status);
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw RequestValidationException.singleError("status", "status must be ACTIVE, INACTIVE, or LOCKED");
+            throw RequestValidationException.singleError("status", "status must be ACTIVE, PENDING_VERIFICATION, INACTIVE, or LOCKED");
         }
     }
 

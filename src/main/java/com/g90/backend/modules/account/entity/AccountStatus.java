@@ -4,6 +4,7 @@ import java.util.Locale;
 
 public enum AccountStatus {
     ACTIVE,
+    PENDING_VERIFICATION,
     INACTIVE,
     LOCKED;
 

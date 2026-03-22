@@ -4,6 +4,7 @@ import java.util.Locale;
 
 public enum CustomerStatus {
     ACTIVE,
+    PENDING_VERIFICATION,
     INACTIVE;
 
     public static CustomerStatus from(String value) {

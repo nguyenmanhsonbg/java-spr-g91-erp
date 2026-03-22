@@ -20,4 +20,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccountEntity, 
 
     @EntityGraph(attributePaths = "role")
     List<UserAccountEntity> findByIdIn(Collection<String> ids);
+
+    @EntityGraph(attributePaths = "role")
+    List<UserAccountEntity> findByRole_NameIgnoreCaseAndStatusIgnoreCase(String roleName, String status);
 }

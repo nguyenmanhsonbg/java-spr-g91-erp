@@ -340,6 +340,7 @@ public class ContractServiceImpl implements ContractService {
         }
 
         ContractEntity detailed = loadDetailedContract(saved.getId());
+        contractNotificationGateway.notifyContractCreated(detailed, "New contract draft created");
         ContractDetailResponseData response = toDetailResponse(detailed);
         logAudit("CREATE_CONTRACT", detailed.getId(), null, response, currentUser.userId());
         return response;
@@ -1245,6 +1246,7 @@ public class ContractServiceImpl implements ContractService {
                 contractInventoryGateway.reserveInventory(contract);
                 recordTrackingEvent(contract, ContractTrackingEventType.APPROVED, ContractStatus.SUBMITTED.name(), "Approval granted", normalizeNullable(request.getComment()), null, null, currentUser.userId());
                 recordTrackingEvent(contract, ContractTrackingEventType.INVENTORY_RESERVED, ContractStatus.SUBMITTED.name(), "Inventory reserved", "Reservation requested for fulfillment", null, null, currentUser.userId());
+                contractNotificationGateway.notifyContractApproved(contract, "Contract approved and submitted");
                 contractNotificationGateway.notifyWarehousePreparation(contract, "Contract approved and submitted");
             }
         } else if (ContractApprovalStatus.REJECTED == decision) {

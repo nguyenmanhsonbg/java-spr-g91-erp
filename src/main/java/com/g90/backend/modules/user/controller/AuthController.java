@@ -6,9 +6,13 @@ import com.g90.backend.modules.user.dto.ChangePasswordRequest;
 import com.g90.backend.modules.user.dto.ForgotPasswordRequest;
 import com.g90.backend.modules.user.dto.LoginRequest;
 import com.g90.backend.modules.user.dto.LoginResponseData;
+import com.g90.backend.modules.user.dto.RegistrationVerificationResponseData;
 import com.g90.backend.modules.user.dto.RegisterRequest;
 import com.g90.backend.modules.user.dto.RegisterResponseData;
+import com.g90.backend.modules.user.dto.ResendVerificationCodeRequest;
+import com.g90.backend.modules.user.dto.ResendVerificationCodeResponseData;
 import com.g90.backend.modules.user.dto.ResetPasswordRequest;
+import com.g90.backend.modules.user.dto.VerifyRegistrationRequest;
 import com.g90.backend.modules.user.service.UserManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -35,7 +39,17 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponseData>> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Register successfully", userManagementService.register(request)));
+                .body(ApiResponse.success("Registration created. Email verification required", userManagementService.register(request)));
+    }
+
+    @PostMapping("/verify-registration")
+    public ApiResponse<RegistrationVerificationResponseData> verifyRegistration(@Valid @RequestBody VerifyRegistrationRequest request) {
+        return ApiResponse.success("Registration verified successfully", userManagementService.verifyRegistration(request));
+    }
+
+    @PostMapping("/resend-verification-code")
+    public ApiResponse<ResendVerificationCodeResponseData> resendVerificationCode(@Valid @RequestBody ResendVerificationCodeRequest request) {
+        return ApiResponse.success("Verification code resent successfully", userManagementService.resendVerificationCode(request));
     }
 
     @PostMapping("/login")

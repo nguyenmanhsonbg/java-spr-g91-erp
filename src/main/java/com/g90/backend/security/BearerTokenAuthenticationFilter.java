@@ -64,6 +64,7 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isActive(UserAccountEntity user) {
-        return AccountStatus.ACTIVE.name().equalsIgnoreCase(user.getStatus());
+        return AccountStatus.ACTIVE.name().equalsIgnoreCase(user.getStatus())
+                && Boolean.TRUE.equals(user.getEmailVerified());
     }
 }
