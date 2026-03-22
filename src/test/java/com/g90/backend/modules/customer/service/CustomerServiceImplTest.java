@@ -14,6 +14,7 @@ import com.g90.backend.modules.account.entity.RoleEntity;
 import com.g90.backend.modules.account.entity.RoleName;
 import com.g90.backend.modules.account.entity.UserAccountEntity;
 import com.g90.backend.modules.account.repository.AuditLogRepository;
+import com.g90.backend.modules.customer.entity.CustomerPriceGroup;
 import com.g90.backend.modules.account.repository.RoleRepository;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
 import com.g90.backend.modules.customer.dto.CustomerCreateRequest;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -103,6 +105,10 @@ class CustomerServiceImplTest {
         assertThat(response.id()).isEqualTo("customer-1");
         assertThat(response.customerCode()).isEqualTo("CUST-008");
         assertThat(response.status()).isEqualTo("ACTIVE");
+
+        ArgumentCaptor<CustomerProfileEntity> customerCaptor = ArgumentCaptor.forClass(CustomerProfileEntity.class);
+        verify(customerManagementRepository).save(customerCaptor.capture());
+        assertThat(customerCaptor.getValue().getPriceGroup()).isEqualTo(CustomerPriceGroup.DEFAULT);
     }
 
     @Test
@@ -161,6 +167,24 @@ class CustomerServiceImplTest {
 
         assertThat(response.customer().companyName()).isEqualTo("ABC Steel Construction JSC");
         assertThat(response.customer().taxCode()).isEqualTo("0101234568");
+    }
+
+    @Test
+    void updateCustomerKeepsExistingPriceGroupWhenRequestOmitsIt() {
+        authenticateAsAccountant();
+        CustomerProfileEntity customer = customer("customer-1");
+        customer.setPriceGroup(CustomerPriceGroup.DEFAULT);
+
+        when(customerManagementRepository.findDetailedById("customer-1")).thenReturn(Optional.of(customer));
+        when(customerManagementRepository.findByTaxCodeIgnoreCase("0101234567")).thenReturn(Optional.empty());
+        when(customerManagementRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CustomerUpdateRequest request = updateRequest();
+        request.setPriceGroup(null);
+
+        var response = customerService.updateCustomer("customer-1", request);
+
+        assertThat(response.customer().priceGroup()).isEqualTo(CustomerPriceGroup.DEFAULT);
     }
 
     @Test
@@ -256,7 +280,7 @@ class CustomerServiceImplTest {
         request.setPhone("0908888888");
         request.setEmail("newcontact@abcsteel.vn");
         request.setCustomerType("DISTRIBUTOR");
-        request.setPriceGroup("DISTRIBUTOR");
+        request.setPriceGroup("DISTRIBUTOR-VIP");
         request.setCreditLimit(new BigDecimal("800000000.00"));
         request.setPaymentTerms("50% advance, 50% after delivery");
         request.setChangeReason("Update business profile");
@@ -274,7 +298,7 @@ class CustomerServiceImplTest {
         customer.setPhone("0901234567");
         customer.setEmail("contact@abcsteel.vn");
         customer.setCustomerType("CONTRACTOR");
-        customer.setPriceGroup("CONTRACTOR");
+        customer.setPriceGroup(CustomerPriceGroup.DEFAULT);
         customer.setCreditLimit(new BigDecimal("500000000.00"));
         customer.setPaymentTerms("70% on delivery, 30% within 30 days");
         customer.setStatus("ACTIVE");

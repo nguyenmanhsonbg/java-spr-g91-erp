@@ -1,6 +1,7 @@
 package com.g90.backend.modules.user.entity;
 
 import com.g90.backend.modules.account.entity.UserAccountEntity;
+import com.g90.backend.modules.customer.entity.CustomerPriceGroup;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -93,16 +94,16 @@ public class CustomerProfileEntity {
         if (updatedAt == null) {
             updatedAt = createdAt;
         }
-        if (!StringUtils.hasText(priceGroup) && StringUtils.hasText(customerType)) {
-            priceGroup = customerType.trim();
+        if (!StringUtils.hasText(priceGroup)) {
+            priceGroup = CustomerPriceGroup.DEFAULT;
         }
     }
 
     @PreUpdate
     public void preUpdate() {
         updatedAt = LocalDateTime.now(APP_ZONE);
-        if (!StringUtils.hasText(priceGroup) && StringUtils.hasText(customerType)) {
-            priceGroup = customerType.trim();
+        if (!StringUtils.hasText(priceGroup)) {
+            priceGroup = CustomerPriceGroup.DEFAULT;
         }
     }
 }

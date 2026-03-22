@@ -25,6 +25,7 @@ import com.g90.backend.modules.customer.dto.CustomerListQuery;
 import com.g90.backend.modules.customer.dto.CustomerListResponseData;
 import com.g90.backend.modules.customer.dto.CustomerStatusResponse;
 import com.g90.backend.modules.customer.dto.CustomerSummaryResponseData;
+import com.g90.backend.modules.customer.entity.CustomerPriceGroup;
 import com.g90.backend.modules.customer.dto.CustomerUpdateRequest;
 import com.g90.backend.modules.customer.entity.CustomerStatus;
 import com.g90.backend.modules.customer.entity.CustomerType;
@@ -167,7 +168,7 @@ public class CustomerServiceImpl implements CustomerService {
                 request.getPhone(),
                 request.getEmail(),
                 request.getCustomerType(),
-                request.getPriceGroup(),
+                StringUtils.hasText(request.getPriceGroup()) ? request.getPriceGroup() : customer.getPriceGroup(),
                 request.getCreditLimit(),
                 request.getPaymentTerms()
         );
@@ -242,7 +243,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setPhone(normalizeNullable(phone));
         customer.setEmail(normalizeNullableEmail(email));
         customer.setCustomerType(resolveCustomerType(customerType, "customerType"));
-        customer.setPriceGroup(resolveCustomerType(StringUtils.hasText(priceGroup) ? priceGroup : customerType, "priceGroup"));
+        customer.setPriceGroup(resolvePriceGroup(priceGroup));
         customer.setCreditLimit(normalizeMoney(creditLimit));
         customer.setPaymentTerms(StringUtils.hasText(paymentTerms) ? paymentTerms.trim() : DEFAULT_PAYMENT_TERMS);
     }
@@ -344,7 +345,7 @@ public class CustomerServiceImpl implements CustomerService {
         request.setPhone(normalizeNullable(request.getPhone()));
         request.setEmail(normalizeNullableEmail(request.getEmail()));
         request.setCustomerType(resolveCustomerType(request.getCustomerType(), "customerType"));
-        request.setPriceGroup(resolveCustomerType(StringUtils.hasText(request.getPriceGroup()) ? request.getPriceGroup() : request.getCustomerType(), "priceGroup"));
+        request.setPriceGroup(CustomerPriceGroup.DEFAULT);
         request.setCreditLimit(normalizeMoney(request.getCreditLimit()));
         request.setPaymentTerms(StringUtils.hasText(request.getPaymentTerms()) ? request.getPaymentTerms().trim() : DEFAULT_PAYMENT_TERMS);
     }
@@ -357,7 +358,7 @@ public class CustomerServiceImpl implements CustomerService {
         request.setPhone(normalizeNullable(request.getPhone()));
         request.setEmail(normalizeNullableEmail(request.getEmail()));
         request.setCustomerType(resolveCustomerType(request.getCustomerType(), "customerType"));
-        request.setPriceGroup(resolveCustomerType(StringUtils.hasText(request.getPriceGroup()) ? request.getPriceGroup() : request.getCustomerType(), "priceGroup"));
+        request.setPriceGroup(StringUtils.hasText(request.getPriceGroup()) ? resolvePriceGroup(request.getPriceGroup()) : null);
         request.setCreditLimit(normalizeMoney(request.getCreditLimit()));
         request.setPaymentTerms(StringUtils.hasText(request.getPaymentTerms()) ? request.getPaymentTerms().trim() : DEFAULT_PAYMENT_TERMS);
         request.setChangeReason(normalizeNullable(request.getChangeReason()));
@@ -380,7 +381,7 @@ public class CustomerServiceImpl implements CustomerService {
             query.setCustomerType(resolveCustomerType(query.getCustomerType(), "customerType"));
         }
         if (StringUtils.hasText(query.getPriceGroup())) {
-            query.setPriceGroup(resolveCustomerType(query.getPriceGroup(), "priceGroup"));
+            query.setPriceGroup(resolvePriceGroup(query.getPriceGroup()));
         }
         if (StringUtils.hasText(query.getStatus())) {
             query.setStatus(resolveStatus(query.getStatus()));
@@ -404,6 +405,13 @@ public class CustomerServiceImpl implements CustomerService {
         } catch (Exception exception) {
             throw RequestValidationException.singleError(field, field + " must be RETAIL, CONTRACTOR, or DISTRIBUTOR");
         }
+    }
+
+    private String resolvePriceGroup(String value) {
+        String normalized = normalizeNullable(value);
+        return StringUtils.hasText(normalized)
+                ? normalized.toUpperCase(Locale.ROOT)
+                : CustomerPriceGroup.DEFAULT;
     }
 
     private String resolveStatus(String value) {
