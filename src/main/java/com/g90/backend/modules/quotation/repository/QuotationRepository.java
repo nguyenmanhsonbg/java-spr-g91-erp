@@ -2,6 +2,7 @@ package com.g90.backend.modules.quotation.repository;
 
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,8 @@ public interface QuotationRepository extends JpaRepository<QuotationEntity, Stri
     long countByCustomer_Id(String customerId);
 
     long countByCustomer_IdAndStatusIgnoreCase(String customerId, String status);
+
+    boolean existsByPromotionCodeIgnoreCaseAndStatusIn(String promotionCode, Collection<String> statuses);
 
     @EntityGraph(attributePaths = {"customer", "customer.user", "project", "items", "items.product"})
     @Query("select q from QuotationEntity q where q.id = :id")

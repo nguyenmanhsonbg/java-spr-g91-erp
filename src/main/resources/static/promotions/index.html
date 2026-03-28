@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promotion Management</title>
+    <link rel="stylesheet" href="./promotion.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div>
+            <div class="pill">Promotion Management</div>
+            <h1>Promotions</h1>
+            <p>Manage discount programs, inspect active scopes, and keep promotion validity under owner control.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Promotion Desk
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Paste a bearer token from the existing auth flow to use the promotion workspace.</p>
+            </div>
+            <div class="pill" data-user-role>Role unknown</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <button class="button primary" type="button" data-token-save>Save Token</button>
+            <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            <a class="button subtle" href="./form.html" data-create-link hidden>Create Promotion</a>
+        </div>
+        <div class="message info" data-page-message hidden></div>
+    </section>
+
+    <section class="grid list-layout" style="margin-top: 24px;">
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="section-title">Directory</h2>
+                    <p class="muted">Filter by name, type, validity, product, and customer group.</p>
+                </div>
+            </div>
+
+            <form class="form-grid compact" data-filter-form>
+                <div class="field">
+                    <label for="search">Search</label>
+                    <input id="search" name="search" type="text" placeholder="Search by name or code">
+                </div>
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">All statuses</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                        <option value="DRAFT">Draft</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="promotionType">Type</label>
+                    <select id="promotionType" name="promotionType">
+                        <option value="">All types</option>
+                        <option value="PERCENT">Percent</option>
+                        <option value="FIXED_AMOUNT">Fixed amount</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="productId">Product</label>
+                    <select id="productId" name="productId">
+                        <option value="">All products</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="customerGroup">Customer Group</label>
+                    <input id="customerGroup" name="customerGroup" type="text" placeholder="DEFAULT">
+                </div>
+                <div class="field">
+                    <label for="validFrom">Valid From</label>
+                    <input id="validFrom" name="validFrom" type="date">
+                </div>
+                <div class="field">
+                    <label for="validTo">Valid To</label>
+                    <input id="validTo" name="validTo" type="date">
+                </div>
+            </form>
+
+            <div class="toolbar" style="margin: 16px 0 18px;">
+                <button class="button primary" type="button" data-apply-filter>Apply Filters</button>
+                <button class="button secondary" type="button" data-reset-filter>Reset</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Promotion</th>
+                        <th>Type</th>
+                        <th>Discount</th>
+                        <th>Validity</th>
+                        <th>Status</th>
+                        <th>Scope</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody data-promotion-body>
+                    <tr>
+                        <td colspan="7" class="empty-state">No promotions loaded yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="page-footer" style="margin-top: 18px;">
+                <div class="pill" data-pagination-label>Page 1</div>
+                <div class="toolbar-inline">
+                    <button class="button secondary" type="button" data-page-prev>Previous</button>
+                    <button class="button secondary" type="button" data-page-next>Next</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="section-title">Preview</h2>
+                    <p class="muted">Open a promotion to inspect scope and audit details.</p>
+                </div>
+            </div>
+            <div data-preview-panel class="detail-stack">
+                <div class="empty-state">Choose a promotion to preview the full configuration.</div>
+            </div>
+        </aside>
+    </section>
+</main>
+
+<script type="module" src="./list.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create or Edit Promotion</title>
+    <link rel="stylesheet" href="./promotion.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div>
+            <div class="pill">Promotion Management</div>
+            <h1 data-form-title>Promotion Editor</h1>
+            <p>Create or update discount programs, keep validity controlled, and assign product or customer-group scope.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Promotion Form
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Owner access is required to save or deactivate promotions.</p>
+            </div>
+            <div class="pill" data-user-role>Role unknown</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <button class="button primary" type="button" data-token-save>Save Token</button>
+            <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            <a class="button subtle" href="./index.html">Back to List</a>
+        </div>
+        <div class="message info" data-form-message hidden></div>
+        <div class="readonly-banner" data-readonly-banner hidden></div>
+    </section>
+
+    <section class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Promotion Setup</h2>
+                <p class="muted">Use product scope, customer-group scope, or both. Empty scope means the promotion applies broadly.</p>
+            </div>
+        </div>
+
+        <form data-promotion-form>
+            <div class="form-grid">
+                <div class="field wide">
+                    <label for="name">Promotion Name</label>
+                    <input id="name" name="name" type="text" placeholder="Summer Coil Discount">
+                    <div class="field-error" data-error-for="name"></div>
+                </div>
+                <div class="field">
+                    <label for="promotionType">Promotion Type</label>
+                    <select id="promotionType" name="promotionType">
+                        <option value="PERCENT">Percent</option>
+                        <option value="FIXED_AMOUNT">Fixed amount</option>
+                    </select>
+                    <div class="field-error" data-error-for="promotionType"></div>
+                </div>
+                <div class="field">
+                    <label for="discountValue">Discount Value</label>
+                    <input id="discountValue" name="discountValue" type="number" min="0.01" step="0.01" placeholder="5.00">
+                    <div class="field-error" data-error-for="discountValue"></div>
+                </div>
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                        <option value="DRAFT">Draft</option>
+                    </select>
+                    <div class="field-error" data-error-for="status"></div>
+                </div>
+                <div class="field">
+                    <label for="priority">Priority</label>
+                    <input id="priority" name="priority" type="number" min="0" step="1" value="0">
+                    <div class="field-error" data-error-for="priority"></div>
+                </div>
+                <div class="field">
+                    <label for="validFrom">Valid From</label>
+                    <input id="validFrom" name="validFrom" type="date">
+                    <div class="field-error" data-error-for="validFrom"></div>
+                </div>
+                <div class="field">
+                    <label for="validTo">Valid To</label>
+                    <input id="validTo" name="validTo" type="date">
+                    <div class="field-error" data-error-for="validTo"></div>
+                </div>
+                <div class="field wide">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" placeholder="Optional promotion note or summary"></textarea>
+                    <div class="field-error" data-error-for="description"></div>
+                </div>
+                <div class="field wide">
+                    <label for="productIds">Applicable Products</label>
+                    <select id="productIds" name="productIds" multiple></select>
+                    <div class="field-error" data-error-for="productIds"></div>
+                </div>
+                <div class="field wide">
+                    <label for="customerGroups">Applicable Customer Groups</label>
+                    <input id="customerGroups" name="customerGroups" type="text" placeholder="DEFAULT, CONTRACTOR">
+                    <div class="field-error" data-error-for="customerGroups"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 24px; padding: 18px;">
+                <div class="card-header" style="margin-bottom: 10px;">
+                    <div>
+                        <h2 class="section-title">Validation</h2>
+                        <p class="muted">Blocking errors are summarized here in addition to inline field messages.</p>
+                    </div>
+                </div>
+                <div class="message error" data-validation-summary hidden></div>
+            </div>
+
+            <div class="toolbar" style="margin-top: 20px;">
+                <button class="button primary" type="submit" data-submit-button>Save Promotion</button>
+                <a class="button secondary" href="./index.html">Cancel</a>
+            </div>
+        </form>
+    </section>
+</main>
+
+<script type="module" src="./form.js"></script>
+</body>
+</html>

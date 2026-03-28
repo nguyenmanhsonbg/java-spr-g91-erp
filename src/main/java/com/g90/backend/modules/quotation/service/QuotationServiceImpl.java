@@ -18,6 +18,7 @@ import com.g90.backend.modules.account.entity.UserAccountEntity;
 import com.g90.backend.modules.account.repository.AuditLogRepository;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
 import com.g90.backend.modules.contract.repository.ContractRepository;
+import com.g90.backend.modules.customer.entity.CustomerPriceGroup;
 import com.g90.backend.modules.pricing.entity.PriceListEntity;
 import com.g90.backend.modules.pricing.entity.PriceListItemEntity;
 import com.g90.backend.modules.pricing.repository.PriceListRepository;
@@ -70,7 +71,9 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
@@ -161,7 +164,10 @@ public class QuotationServiceImpl implements QuotationService {
                 ))
                 .toList();
 
-        List<QuotationFormInitResponseData.PromotionData> promotions = promotionRepository.findActivePromotions(LocalDate.now(APP_ZONE)).stream()
+        List<QuotationFormInitResponseData.PromotionData> promotions = promotionRepository.findVisibleActivePromotions(
+                        LocalDate.now(APP_ZONE),
+                        resolveCustomerPromotionGroups(customer)
+                ).stream()
                 .map(promotion -> new QuotationFormInitResponseData.PromotionData(
                         promotion.getCode(),
                         promotion.getName(),
@@ -618,7 +624,7 @@ public class QuotationServiceImpl implements QuotationService {
             itemResponses.add(quotationMapper.toItemResponse(null, product, quantity, unitPrice, totalPrice));
         }
 
-        PromotionOutcome promotion = resolvePromotion(normalizeNullable(request.getPromotionCode()), preparedItems, subTotal);
+        PromotionOutcome promotion = resolvePromotion(customer, normalizeNullable(request.getPromotionCode()), preparedItems, subTotal);
         BigDecimal totalAmount = subTotal.subtract(promotion.discountAmount()).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
         if (enforceMinimumAmount && totalAmount.compareTo(MIN_TOTAL_AMOUNT) < 0) {
@@ -745,6 +751,7 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     private PromotionOutcome resolvePromotion(
+            CustomerProfileEntity customer,
             String promotionCode,
             List<PreparedQuotationItem> items,
             BigDecimal subTotal
@@ -759,6 +766,9 @@ public class QuotationServiceImpl implements QuotationService {
         Set<String> selectedProductIds = items.stream()
                 .map(item -> item.product().getId())
                 .collect(Collectors.toSet());
+        if (!isPromotionApplicableToCustomer(promotion, resolveCustomerPromotionGroups(customer))) {
+            throw new PromotionNotApplicableException(promotionCode);
+        }
         if (!isPromotionApplicableToProducts(promotion, selectedProductIds)) {
             throw new PromotionNotApplicableException(promotionCode);
         }
@@ -772,10 +782,37 @@ public class QuotationServiceImpl implements QuotationService {
             return true;
         }
         return promotion.getProducts().stream()
+                .filter(scope -> scope.getDeletedAt() == null)
                 .map(PromotionProductEntity::getProduct)
                 .filter(product -> product != null)
                 .map(ProductEntity::getId)
                 .anyMatch(selectedProductIds::contains);
+    }
+
+    private boolean isPromotionApplicableToCustomer(PromotionEntity promotion, Set<String> customerGroups) {
+        if (promotion.getCustomerGroups() == null || promotion.getCustomerGroups().isEmpty()) {
+            return true;
+        }
+        return promotion.getCustomerGroups().stream()
+                .filter(scope -> scope.getDeletedAt() == null)
+                .map(scope -> scope.getCustomerGroup() == null ? null : scope.getCustomerGroup().trim().toUpperCase(Locale.ROOT))
+                .filter(Objects::nonNull)
+                .anyMatch(customerGroups::contains);
+    }
+
+    private Set<String> resolveCustomerPromotionGroups(CustomerProfileEntity customer) {
+        Set<String> groups = new LinkedHashSet<>();
+        groups.add(CustomerPriceGroup.DEFAULT);
+        if (customer == null) {
+            return groups;
+        }
+        if (StringUtils.hasText(customer.getPriceGroup())) {
+            groups.add(customer.getPriceGroup().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StringUtils.hasText(customer.getCustomerType())) {
+            groups.add(customer.getCustomerType().trim().toUpperCase(Locale.ROOT));
+        }
+        return groups;
     }
 
     private BigDecimal calculateDiscountAmount(PromotionEntity promotion, BigDecimal subTotal) {

@@ -1,6 +1,5 @@
 package com.g90.backend.modules.promotion.entity;
 
-import com.g90.backend.modules.product.entity.ProductEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -19,8 +18,8 @@ import org.springframework.util.StringUtils;
 @Getter
 @Setter
 @Entity
-@Table(name = "promotion_products")
-public class PromotionProductEntity {
+@Table(name = "promotion_customer_groups")
+public class PromotionCustomerGroupEntity {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -32,9 +31,8 @@ public class PromotionProductEntity {
     @JoinColumn(name = "promotion_id")
     private PromotionEntity promotion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private ProductEntity product;
+    @Column(name = "customer_group", length = 50, nullable = false)
+    private String customerGroup;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

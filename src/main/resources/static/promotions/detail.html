@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promotion Detail</title>
+    <link rel="stylesheet" href="./promotion.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div>
+            <div class="pill">Promotion Management</div>
+            <h1>Promotion Detail</h1>
+            <p>Review promotion scope, validity, and audit metadata without entering edit mode.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Detail View
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Owner, Accountant, or Customer access is required to load promotion data.</p>
+            </div>
+            <div class="pill" data-user-role>Role unknown</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <button class="button primary" type="button" data-token-save>Save Token</button>
+            <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            <a class="button subtle" href="./index.html">Back to List</a>
+            <a class="button subtle" href="#" data-edit-link hidden>Edit Promotion</a>
+        </div>
+        <div class="message info" data-page-message hidden></div>
+    </section>
+
+    <section class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Configuration</h2>
+                <p class="muted">The detail view shows header data, scope mappings, and the latest audit metadata.</p>
+            </div>
+        </div>
+        <div data-detail-panel class="detail-stack">
+            <div class="empty-state">Loading promotion detail...</div>
+        </div>
+    </section>
+</main>
+
+<script type="module" src="./detail.js"></script>
+</body>
+</html>
