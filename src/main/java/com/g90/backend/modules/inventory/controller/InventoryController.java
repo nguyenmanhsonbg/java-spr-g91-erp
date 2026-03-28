@@ -1,5 +1,6 @@
 package com.g90.backend.modules.inventory.controller;
 
+import com.g90.backend.config.OpenApiConfig;
 import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.inventory.dto.InventoryAdjustmentRequest;
 import com.g90.backend.modules.inventory.dto.InventoryHistoryQuery;
@@ -10,6 +11,7 @@ import com.g90.backend.modules.inventory.dto.InventoryReceiptRequest;
 import com.g90.backend.modules.inventory.dto.InventoryStatusQuery;
 import com.g90.backend.modules.inventory.dto.InventoryStatusResponseData;
 import com.g90.backend.modules.inventory.service.InventoryService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/inventory")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
 public class InventoryController {
 
     private final InventoryService inventoryService;
