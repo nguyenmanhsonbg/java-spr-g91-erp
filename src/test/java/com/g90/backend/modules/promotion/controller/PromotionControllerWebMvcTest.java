@@ -17,8 +17,10 @@ import com.g90.backend.modules.account.entity.RoleName;
 import com.g90.backend.modules.account.entity.UserAccountEntity;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
 import com.g90.backend.modules.product.dto.PaginationResponse;
+import com.g90.backend.modules.promotion.dto.PromotionDetailResponse;
 import com.g90.backend.modules.promotion.dto.PromotionListItemResponse;
 import com.g90.backend.modules.promotion.dto.PromotionListResponseData;
+import com.g90.backend.modules.promotion.dto.PromotionScopeProductResponse;
 import com.g90.backend.modules.promotion.service.PromotionService;
 import com.g90.backend.security.AccessTokenService;
 import com.g90.backend.security.BearerTokenAuthenticationFilter;
@@ -81,6 +83,20 @@ class PromotionControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.items[0].scopeSummary").value("1 product(s) | DEFAULT"));
+    }
+
+    @Test
+    void ownerCanViewPromotionDetail() throws Exception {
+        authenticateAs(RoleName.OWNER);
+        when(promotionService.getPromotionById("promotion-1")).thenReturn(detailResponse());
+
+        mockMvc.perform(get("/api/promotions/promotion-1").header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.id").value("promotion-1"))
+                .andExpect(jsonPath("$.data.code").value("PROMO-APR-01"))
+                .andExpect(jsonPath("$.data.products[0].productCode").value("SP001"))
+                .andExpect(jsonPath("$.data.customerGroups[0]").value("DEFAULT"));
     }
 
     @Test
@@ -159,6 +175,31 @@ class PromotionControllerWebMvcTest {
                 PaginationResponse.builder().page(1).pageSize(20).totalItems(1).totalPages(1).build(),
                 new PromotionListResponseData.Filters(null, status, null, null, null, null, null)
         );
+    }
+
+    private PromotionDetailResponse detailResponse() {
+        return PromotionDetailResponse.builder()
+                .id("promotion-1")
+                .code("PROMO-APR-01")
+                .name("April Promo")
+                .promotionType("PERCENT")
+                .discountValue(new BigDecimal("5.00"))
+                .validFrom(LocalDate.of(2026, 4, 1))
+                .validTo(LocalDate.of(2026, 4, 30))
+                .status("ACTIVE")
+                .priority(5)
+                .description("Seasonal discount")
+                .createdBy("owner-1")
+                .updatedBy("owner-1")
+                .createdAt(LocalDateTime.of(2026, 3, 28, 10, 0))
+                .updatedAt(LocalDateTime.of(2026, 3, 28, 10, 30))
+                .products(List.of(PromotionScopeProductResponse.builder()
+                        .productId("product-1")
+                        .productCode("SP001")
+                        .productName("Steel Product SP001")
+                        .build()))
+                .customerGroups(List.of("DEFAULT"))
+                .build();
     }
 
     private UserAccountEntity user(String userId, RoleName roleName) {

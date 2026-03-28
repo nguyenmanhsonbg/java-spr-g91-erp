@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -15,17 +14,12 @@ public interface PromotionRepository extends JpaRepository<PromotionEntity, Stri
 
     boolean existsByCodeIgnoreCase(String code);
 
-    @EntityGraph(attributePaths = {"products", "products.product", "customerGroups"})
     @Query("select distinct p from PromotionEntity p where p.id = :id and p.deletedAt is null")
     Optional<PromotionEntity> findDetailedById(@Param("id") String id);
 
-    @EntityGraph(attributePaths = {"products", "products.product", "customerGroups"})
     @Query("""
             select distinct p
             from PromotionEntity p
-            left join fetch p.products pp
-            left join fetch pp.product product
-            left join fetch p.customerGroups customerGroup
             where p.deletedAt is null
               and upper(p.status) = 'ACTIVE'
               and p.code is not null
@@ -35,13 +29,9 @@ public interface PromotionRepository extends JpaRepository<PromotionEntity, Stri
             """)
     List<PromotionEntity> findActivePromotions(@Param("today") LocalDate today);
 
-    @EntityGraph(attributePaths = {"products", "products.product", "customerGroups"})
     @Query("""
             select distinct p
             from PromotionEntity p
-            left join fetch p.products pp
-            left join fetch pp.product product
-            left join fetch p.customerGroups customerGroup
             where p.deletedAt is null
               and upper(p.status) = 'ACTIVE'
               and p.code is not null
@@ -69,13 +59,9 @@ public interface PromotionRepository extends JpaRepository<PromotionEntity, Stri
             @Param("customerGroups") Collection<String> customerGroups
     );
 
-    @EntityGraph(attributePaths = {"products", "products.product", "customerGroups"})
     @Query("""
             select distinct p
             from PromotionEntity p
-            left join fetch p.products pp
-            left join fetch pp.product product
-            left join fetch p.customerGroups customerGroup
             where upper(p.code) = upper(:code)
               and p.deletedAt is null
               and upper(p.status) = 'ACTIVE'

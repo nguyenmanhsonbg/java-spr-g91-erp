@@ -19,6 +19,7 @@ import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.product.entity.ProductStatus;
 import com.g90.backend.modules.product.repository.ProductRepository;
 import com.g90.backend.modules.promotion.dto.PromotionCreateRequest;
+import com.g90.backend.modules.promotion.dto.PromotionDetailResponse;
 import com.g90.backend.modules.promotion.dto.PromotionUpdateRequest;
 import com.g90.backend.modules.promotion.entity.PromotionCustomerGroupEntity;
 import com.g90.backend.modules.promotion.entity.PromotionEntity;
@@ -130,6 +131,19 @@ class PromotionServiceImplTest {
 
         assertThatThrownBy(() -> promotionService.createPromotion(request))
                 .isInstanceOf(RequestValidationException.class);
+    }
+
+    @Test
+    void getPromotionDetailSuccess() {
+        authenticateAs(RoleName.OWNER);
+        when(promotionRepository.findDetailedById("promotion-1")).thenReturn(Optional.of(existingPromotion()));
+
+        PromotionDetailResponse response = promotionService.getPromotionById("promotion-1");
+
+        assertThat(response.id()).isEqualTo("promotion-1");
+        assertThat(response.code()).isEqualTo("PROMO-APR-01");
+        assertThat(response.products()).hasSize(1);
+        assertThat(response.customerGroups()).containsExactly("DEFAULT");
     }
 
     @Test
