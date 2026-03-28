@@ -849,6 +849,7 @@ public class ContractServiceImpl implements ContractService {
         return new PreparedContract(
                 customer,
                 quotation,
+                resolvePriceListId(quotation, pricingByProductId),
                 items,
                 totalAmount,
                 requiresApproval,
@@ -947,6 +948,7 @@ public class ContractServiceImpl implements ContractService {
         contract.setContractNumber(contractNumber);
         contract.setCustomer(prepared.customer());
         contract.setQuotation(prepared.quotation());
+        contract.setPriceListId(prepared.priceListId());
         contract.setPaymentTerms(prepared.paymentTerms());
         contract.setDeliveryAddress(prepared.deliveryAddress());
         contract.setDeliveryTerms(prepared.deliveryTerms());
@@ -1510,6 +1512,17 @@ public class ContractServiceImpl implements ContractService {
         return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : normalizeMoney(value);
     }
 
+    private String resolvePriceListId(
+            QuotationEntity quotation,
+            Map<String, ContractPricingGateway.PricingData> pricingByProductId
+    ) {
+        return pricingByProductId.values().stream()
+                .map(ContractPricingGateway.PricingData::priceListId)
+                .filter(StringUtils::hasText)
+                .findFirst()
+                .orElse(quotation == null ? null : quotation.getPriceListId());
+    }
+
     private BigDecimal normalizeMoney(BigDecimal value) {
         return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
@@ -1575,6 +1588,7 @@ public class ContractServiceImpl implements ContractService {
     private record PreparedContract(
             CustomerProfileEntity customer,
             QuotationEntity quotation,
+            String priceListId,
             List<PreparedItem> items,
             BigDecimal totalAmount,
             boolean requiresApproval,

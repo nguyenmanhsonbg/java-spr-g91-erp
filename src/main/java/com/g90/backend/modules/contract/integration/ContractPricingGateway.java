@@ -56,7 +56,7 @@ class JpaContractPricingGateway implements ContractPricingGateway {
 
         PriceListEntity selected = priceLists.get(0);
         for (PriceListItemEntity item : selected.getItems()) {
-            if (item.getProduct() == null || item.getUnitPrice() == null) {
+            if (item.getDeletedAt() != null || item.getProduct() == null || item.getUnitPrice() == null) {
                 continue;
             }
             if (!productIds.contains(item.getProduct().getId())) {

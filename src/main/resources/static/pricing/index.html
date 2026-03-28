@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing Management</title>
+    <link rel="stylesheet" href="./pricing.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div>
+            <div class="pill">Pricing Management</div>
+            <h1>Price Lists</h1>
+            <p>Manage customer-group pricing in VND, track validity periods, and review price items without leaving the ERP backend.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Pricing Grid
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Paste a bearer token from the existing auth flow to use the management screens.</p>
+            </div>
+            <div class="pill" data-user-role>Role unknown</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <button class="button primary" type="button" data-token-save>Save Token</button>
+            <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            <a class="button subtle" href="./form.html" data-create-link hidden>Create Price List</a>
+        </div>
+        <div class="message info" data-page-message hidden></div>
+    </section>
+
+    <section class="grid list-layout" style="margin-top: 24px;">
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="section-title">Directory</h2>
+                    <p class="muted">Filter by name, customer group, status, and validity window.</p>
+                </div>
+            </div>
+
+            <form class="form-grid compact" data-filter-form>
+                <div class="field">
+                    <label for="search">Search</label>
+                    <input id="search" name="search" type="text" placeholder="Search by price list name">
+                </div>
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">All statuses</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="customerGroup">Customer Group</label>
+                    <input id="customerGroup" name="customerGroup" type="text" placeholder="CONTRACTOR">
+                </div>
+                <div class="field">
+                    <label for="validFrom">Valid From</label>
+                    <input id="validFrom" name="validFrom" type="date">
+                </div>
+                <div class="field">
+                    <label for="validTo">Valid To</label>
+                    <input id="validTo" name="validTo" type="date">
+                </div>
+            </form>
+            <div class="toolbar" style="margin: 16px 0 18px;">
+                <button class="button primary" type="button" data-apply-filter>Apply Filters</button>
+                <button class="button secondary" type="button" data-reset-filter>Reset</button>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Customer Group</th>
+                        <th>Validity</th>
+                        <th>Status</th>
+                        <th>Items</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody data-price-list-body>
+                    <tr>
+                        <td colspan="6" class="empty-state">No price lists loaded yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="page-footer">
+                <div class="pill" data-pagination-label>Page 1</div>
+                <div class="toolbar-inline">
+                    <button class="button secondary" type="button" data-page-prev>Previous</button>
+                    <button class="button secondary" type="button" data-page-next>Next</button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="section-title">Detail</h2>
+                    <p class="muted">Select a price list to inspect its validity period and items.</p>
+                </div>
+            </div>
+            <div data-detail-panel class="detail-stack">
+                <div class="empty-state">Choose a price list to see item-level pricing.</div>
+            </div>
+        </aside>
+    </section>
+</main>
+
+<script type="module" src="./list.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import lombok.Builder;
 @Builder
 public record ProductFiltersResponse(
         String keyword,
+        String search,
         String type,
         String size,
         String thickness,

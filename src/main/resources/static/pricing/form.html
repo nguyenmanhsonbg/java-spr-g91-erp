@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create or Edit Price List</title>
+    <link rel="stylesheet" href="./pricing.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div>
+            <div class="pill">Pricing Management</div>
+            <h1 data-form-title>Price List Editor</h1>
+            <p>Build or adjust a customer-group price list, keep values in VND, and submit a validated set of price items.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Pricing Form
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Owner access is required to save changes.</p>
+            </div>
+            <div class="pill" data-user-role>Role unknown</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <button class="button primary" type="button" data-token-save>Save Token</button>
+            <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            <a class="button subtle" href="./index.html">Back to List</a>
+        </div>
+        <div class="message info" data-form-message hidden></div>
+        <div class="readonly-banner" data-readonly-banner hidden></div>
+    </section>
+
+    <section class="card" style="margin-top: 24px;">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Header</h2>
+                <p class="muted">Required fields must be completed before the list can be saved.</p>
+            </div>
+        </div>
+
+        <form data-price-list-form>
+            <div class="form-grid">
+                <div class="field wide">
+                    <label for="name">Price List Name</label>
+                    <input id="name" name="name" type="text" placeholder="April Contractor Pricing">
+                    <div class="field-error" data-error-for="name"></div>
+                </div>
+                <div class="field">
+                    <label for="customerGroup">Customer Group</label>
+                    <input id="customerGroup" name="customerGroup" type="text" placeholder="CONTRACTOR">
+                    <div class="field-error" data-error-for="customerGroup"></div>
+                </div>
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                    <div class="field-error" data-error-for="status"></div>
+                </div>
+                <div class="field">
+                    <label for="validFrom">Valid From</label>
+                    <input id="validFrom" name="validFrom" type="date">
+                    <div class="field-error" data-error-for="validFrom"></div>
+                </div>
+                <div class="field">
+                    <label for="validTo">Valid To</label>
+                    <input id="validTo" name="validTo" type="date">
+                    <div class="field-error" data-error-for="validTo"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 28px;">
+                <div class="items-header">
+                    <div>
+                        <h2 class="section-title">Price Items</h2>
+                        <p class="muted">Each product can appear only once. Prices are stored and displayed in VND.</p>
+                    </div>
+                    <button class="button primary" type="button" data-add-row>Add Item</button>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Unit Price (VND)</th>
+                            <th>Note</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody data-item-body>
+                        <tr>
+                            <td colspan="4" class="empty-state">Loading product catalog...</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="field-error" data-error-for="items"></div>
+            </div>
+
+            <div class="card" style="margin-top: 24px; padding: 18px;">
+                <div class="card-header" style="margin-bottom: 10px;">
+                    <div>
+                        <h2 class="section-title">Validation</h2>
+                        <p class="muted">Inline issues appear below each field. Blocking errors are also summarized here.</p>
+                    </div>
+                </div>
+                <div class="message error" data-validation-summary hidden></div>
+            </div>
+
+            <div class="toolbar" style="margin-top: 20px;">
+                <button class="button primary" type="submit" data-submit-button>Save Price List</button>
+                <a class="button secondary" href="./index.html">Cancel</a>
+            </div>
+        </form>
+    </section>
+</main>
+
+<script type="module" src="./form.js"></script>
+</body>
+</html>

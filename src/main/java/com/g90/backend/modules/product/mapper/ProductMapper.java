@@ -9,7 +9,9 @@ import com.g90.backend.modules.product.dto.ProductResponse;
 import com.g90.backend.modules.product.dto.ProductStatusResponse;
 import com.g90.backend.modules.product.dto.ProductUpdateRequest;
 import com.g90.backend.modules.product.entity.ProductEntity;
+import com.g90.backend.modules.product.entity.ProductImageEntity;
 import java.time.ZoneId;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +30,7 @@ public class ProductMapper {
         entity.setUnit(request.getUnit());
         entity.setWeightConversion(request.getWeightConversion());
         entity.setReferenceWeight(request.getReferenceWeight());
+        entity.setDescription(request.getDescription());
         entity.setStatus(request.getStatus());
         return entity;
     }
@@ -41,6 +44,7 @@ public class ProductMapper {
         entity.setUnit(request.getUnit());
         entity.setWeightConversion(request.getWeightConversion());
         entity.setReferenceWeight(request.getReferenceWeight());
+        entity.setDescription(request.getDescription());
         entity.setStatus(request.getStatus());
     }
 
@@ -55,8 +59,12 @@ public class ProductMapper {
                 .unit(entity.getUnit())
                 .weightConversion(entity.getWeightConversion())
                 .referenceWeight(entity.getReferenceWeight())
+                .description(entity.getDescription())
+                .imageUrls(toImageUrls(entity))
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt() == null ? null : entity.getCreatedAt().atZone(APP_ZONE).toOffsetDateTime())
+                .updatedAt(entity.getUpdatedAt() == null ? null : entity.getUpdatedAt().atZone(APP_ZONE).toOffsetDateTime())
+                .deletedAt(entity.getDeletedAt() == null ? null : entity.getDeletedAt().atZone(APP_ZONE).toOffsetDateTime())
                 .build();
     }
 
@@ -66,7 +74,8 @@ public class ProductMapper {
                 .productCode(entity.getProductCode())
                 .productName(entity.getProductName())
                 .status(entity.getStatus())
-                .createdAt(entity.getCreatedAt() == null ? null : entity.getCreatedAt().atZone(APP_ZONE).toOffsetDateTime())
+                .updatedAt(entity.getUpdatedAt() == null ? null : entity.getUpdatedAt().atZone(APP_ZONE).toOffsetDateTime())
+                .deletedAt(entity.getDeletedAt() == null ? null : entity.getDeletedAt().atZone(APP_ZONE).toOffsetDateTime())
                 .build();
     }
 
@@ -81,6 +90,7 @@ public class ProductMapper {
                         .build())
                 .filters(ProductFiltersResponse.builder()
                         .keyword(query.getKeyword())
+                        .search(query.getKeyword())
                         .type(query.getType())
                         .size(query.getSize())
                         .thickness(query.getThickness())
@@ -88,5 +98,15 @@ public class ProductMapper {
                         .status(query.getStatus())
                         .build())
                 .build();
+    }
+
+    private List<String> toImageUrls(ProductEntity entity) {
+        if (entity.getImages() == null || entity.getImages().isEmpty()) {
+            return List.of();
+        }
+
+        return entity.getImages().stream()
+                .map(ProductImageEntity::getImageUrl)
+                .toList();
     }
 }

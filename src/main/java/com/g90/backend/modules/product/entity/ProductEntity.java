@@ -1,16 +1,23 @@
 package com.g90.backend.modules.product.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -55,11 +62,31 @@ public class ProductEntity {
     @Column(name = "reference_weight", precision = 10, scale = 4)
     private BigDecimal referenceWeight;
 
+    @Column(name = "description", length = 1000)
+    private String description;
+
     @Column(name = "status", length = 20, nullable = false)
     private String status;
 
+    @Column(name = "created_by", length = 36)
+    private String createdBy;
+
+    @Column(name = "updated_by", length = 36)
+    private String updatedBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Default
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder asc, createdAt asc")
+    private List<ProductImageEntity> images = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
@@ -72,5 +99,13 @@ public class ProductEntity {
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);
         }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now(APP_ZONE);
     }
 }

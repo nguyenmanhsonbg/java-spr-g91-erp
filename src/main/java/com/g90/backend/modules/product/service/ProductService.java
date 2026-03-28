@@ -19,4 +19,6 @@ public interface ProductService {
     ProductResponse updateProduct(String id, ProductUpdateRequest request);
 
     ProductStatusResponse updateProductStatus(String id, ProductStatusUpdateRequest request);
+
+    ProductStatusResponse deleteProduct(String id);
 }

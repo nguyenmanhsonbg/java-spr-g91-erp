@@ -10,6 +10,7 @@ public record ProductStatusResponse(
         String productCode,
         String productName,
         String status,
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX") OffsetDateTime createdAt
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX") OffsetDateTime updatedAt,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX") OffsetDateTime deletedAt
 ) {
 }

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Management</title>
+    <link rel="stylesheet" href="./product.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div class="card">
+            <div class="pill">Product Management</div>
+            <h1>Steel Catalog</h1>
+            <p>Browse the public steel catalog, filter by specification, and switch into warehouse mode with a bearer token when you need to create, edit, or archive products.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Product Catalog
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Guest browsing works without authentication. Warehouse actions require a valid bearer token.</p>
+            </div>
+            <div class="pill" data-user-role>Guest catalog access</div>
+        </div>
+
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token for warehouse actions">
+            </div>
+        </div>
+
+        <div class="toolbar" style="margin-top: 14px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-token-save>Save Token</button>
+                <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            </div>
+            <a class="button subtle" href="./form.html" data-create-link hidden>Create Product</a>
+        </div>
+
+        <div class="message info" data-page-message hidden></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Filters</h2>
+                <p class="muted">Search by code or name and narrow the catalog by steel specification.</p>
+            </div>
+        </div>
+
+        <form class="form-grid" data-filter-form>
+            <div class="field">
+                <label for="search">Search</label>
+                <input id="search" name="search" type="text" placeholder="Search by code, name, or type">
+            </div>
+            <div class="field">
+                <label for="type">Type</label>
+                <input id="type" name="type" type="text" placeholder="Coil, sheet, beam">
+            </div>
+            <div class="field">
+                <label for="sizeValue">Size</label>
+                <input id="sizeValue" name="sizeValue" type="text" placeholder="1200 x 2400">
+            </div>
+            <div class="field">
+                <label for="thickness">Thickness</label>
+                <input id="thickness" name="thickness" type="text" placeholder="0.45">
+            </div>
+            <div class="field" data-status-field hidden>
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All statuses</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                </select>
+            </div>
+        </form>
+
+        <div class="toolbar" style="margin-top: 18px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-apply-filter>Apply Filters</button>
+                <button class="button secondary" type="button" data-reset-filter>Reset</button>
+            </div>
+            <div class="pill" data-pagination-label>Page 1</div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 18px;">
+            <table>
+                <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Thickness</th>
+                    <th>Unit</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody data-product-body>
+                <tr>
+                    <td colspan="7" class="empty-state">Loading products...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="page-footer" style="margin-top: 18px;">
+            <div class="muted" data-total-label>0 products</div>
+            <div class="toolbar-inline">
+                <button class="button secondary" type="button" data-page-prev>Previous</button>
+                <button class="button secondary" type="button" data-page-next>Next</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script type="module" src="./list.js"></script>
+</body>
+</html>

@@ -5,9 +5,6 @@ import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.pricing.dto.PriceListCreateDataResponse;
 import com.g90.backend.modules.pricing.dto.PriceListCreateRequest;
 import com.g90.backend.modules.pricing.dto.PriceListDetailResponse;
-import com.g90.backend.modules.pricing.dto.PriceListItemCreateDataResponse;
-import com.g90.backend.modules.pricing.dto.PriceListItemCreateRequest;
-import com.g90.backend.modules.pricing.dto.PriceListItemUpdateRequest;
 import com.g90.backend.modules.pricing.dto.PriceListListQuery;
 import com.g90.backend.modules.pricing.dto.PriceListListResponseData;
 import com.g90.backend.modules.pricing.dto.PriceListUpdateRequest;
@@ -56,41 +53,16 @@ public class PricingController {
     }
 
     @PutMapping("/price-lists/{id}")
-    public ApiResponse<Void> updatePriceList(
+    public ApiResponse<PriceListDetailResponse> updatePriceList(
             @PathVariable String id,
             @Valid @RequestBody PriceListUpdateRequest request
     ) {
-        pricingService.updatePriceList(id, request);
-        return ApiResponse.success("Price list updated successfully", null);
+        return ApiResponse.success("Price list updated successfully", pricingService.updatePriceList(id, request));
     }
 
     @DeleteMapping("/price-lists/{id}")
     public ApiResponse<Void> deletePriceList(@PathVariable String id) {
         pricingService.deletePriceList(id);
         return ApiResponse.success("Price list deleted successfully", null);
-    }
-
-    @PostMapping("/price-lists/{id}/items")
-    public ResponseEntity<ApiResponse<PriceListItemCreateDataResponse>> addPriceListItem(
-            @PathVariable String id,
-            @Valid @RequestBody PriceListItemCreateRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Price item added successfully", pricingService.addPriceListItem(id, request)));
-    }
-
-    @PutMapping("/price-list-items/{id}")
-    public ApiResponse<Void> updatePriceListItem(
-            @PathVariable String id,
-            @Valid @RequestBody PriceListItemUpdateRequest request
-    ) {
-        pricingService.updatePriceListItem(id, request);
-        return ApiResponse.success("Price item updated successfully", null);
-    }
-
-    @DeleteMapping("/price-list-items/{id}")
-    public ApiResponse<Void> deletePriceListItem(@PathVariable String id) {
-        pricingService.deletePriceListItem(id);
-        return ApiResponse.success("Price item deleted successfully", null);
     }
 }

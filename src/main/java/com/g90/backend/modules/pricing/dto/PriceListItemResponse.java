@@ -7,7 +7,10 @@ import lombok.Builder;
 public record PriceListItemResponse(
         String id,
         String productId,
+        String productCode,
         String productName,
-        BigDecimal unitPrice
+        BigDecimal unitPriceVnd,
+        String pricingRuleType,
+        String note
 ) {
 }

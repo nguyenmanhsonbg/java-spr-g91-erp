@@ -12,8 +12,8 @@ public class InvalidDateRangeException extends ApiException {
                 "MSG50",
                 "Invalid date range",
                 List.of(ValidationErrorItem.builder()
-                        .field("startDate")
-                        .message("Start date must be before end date")
+                        .field("validFrom")
+                        .message("Valid from must be on or before valid to")
                         .build())
         );
     }

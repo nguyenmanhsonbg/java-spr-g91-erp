@@ -121,7 +121,8 @@ public class QuotationServiceImpl implements QuotationService {
     @Transactional(readOnly = true)
     public QuotationFormInitResponseData getQuotationFormInit(QuotationFormInitQuery query) {
         CustomerProfileEntity customer = loadCurrentCustomer();
-        Map<String, BigDecimal> unitPriceByProductId = loadUnitPriceMap(resolveApplicablePriceLists(customer));
+        ResolvedPricing resolvedPricing = resolvePricing(customer);
+        Map<String, BigDecimal> unitPriceByProductId = resolvedPricing.unitPriceByProductId();
 
         ProductListQuery productQuery = new ProductListQuery();
         productQuery.setKeyword(normalizeNullable(query.getKeyword()));
@@ -592,7 +593,8 @@ public class QuotationServiceImpl implements QuotationService {
         ProjectEntity project = resolveProject(customer.getId(), normalizeNullable(request.getProjectId()));
 
         Map<String, ProductEntity> products = loadProducts(request.getItems());
-        Map<String, BigDecimal> unitPriceByProductId = loadUnitPriceMap(resolveApplicablePriceLists(customer));
+        ResolvedPricing resolvedPricing = resolvePricing(customer);
+        Map<String, BigDecimal> unitPriceByProductId = resolvedPricing.unitPriceByProductId();
 
         List<PreparedQuotationItem> preparedItems = new ArrayList<>();
         List<QuotationItemResponse> itemResponses = new ArrayList<>();
@@ -624,6 +626,7 @@ public class QuotationServiceImpl implements QuotationService {
         }
 
         return new PreparedQuotation(
+                resolvedPricing.priceListId(),
                 project,
                 LocalDate.now(APP_ZONE).plusDays(15),
                 subTotal,
@@ -710,19 +713,20 @@ public class QuotationServiceImpl implements QuotationService {
         return priceListRepository.findApplicablePriceLists(customerGroup, LocalDate.now(APP_ZONE));
     }
 
-    private Map<String, BigDecimal> loadUnitPriceMap(List<PriceListEntity> applicablePriceLists) {
+    private ResolvedPricing resolvePricing(CustomerProfileEntity customer) {
+        List<PriceListEntity> applicablePriceLists = resolveApplicablePriceLists(customer);
         Map<String, BigDecimal> unitPriceByProductId = new LinkedHashMap<>();
         if (applicablePriceLists.isEmpty()) {
-            return unitPriceByProductId;
+            return new ResolvedPricing(null, unitPriceByProductId);
         }
 
         PriceListEntity selectedPriceList = applicablePriceLists.get(0);
         for (PriceListItemEntity item : selectedPriceList.getItems()) {
-            if (item.getProduct() != null && item.getUnitPrice() != null) {
+            if (item.getDeletedAt() == null && item.getProduct() != null && item.getUnitPrice() != null) {
                 unitPriceByProductId.putIfAbsent(item.getProduct().getId(), normalizeMoney(item.getUnitPrice()));
             }
         }
-        return unitPriceByProductId;
+        return new ResolvedPricing(selectedPriceList.getId(), unitPriceByProductId);
     }
 
     private BigDecimal resolveUnitPrice(
@@ -806,6 +810,7 @@ public class QuotationServiceImpl implements QuotationService {
     ) {
         quotation.setCustomer(customer);
         quotation.setProject(project);
+        quotation.setPriceListId(preparedQuotation.priceListId());
         quotation.setQuotationNumber(quotationNumber);
         quotation.setStatus(status.name());
         quotation.setValidUntil(preparedQuotation.validUntil());
@@ -1019,6 +1024,7 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     private record PreparedQuotation(
+            String priceListId,
             ProjectEntity project,
             LocalDate validUntil,
             BigDecimal subTotal,
@@ -1029,6 +1035,12 @@ public class QuotationServiceImpl implements QuotationService {
             String note,
             String deliveryRequirements,
             PromotionOutcome promotion
+    ) {
+    }
+
+    private record ResolvedPricing(
+            String priceListId,
+            Map<String, BigDecimal> unitPriceByProductId
     ) {
     }
 

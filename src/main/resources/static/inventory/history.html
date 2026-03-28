@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory History</title>
+    <link rel="stylesheet" href="./inventory.css">
+</head>
+<body>
+<main class="shell">
+    <nav class="nav">
+        <a class="button subtle" href="./status.html">Status</a>
+        <a class="button subtle" href="./history.html">History</a>
+        <a class="button subtle" href="./receipt.html">Receipt</a>
+        <a class="button subtle" href="./issue.html">Issue</a>
+        <a class="button subtle" href="./adjustment.html">Adjustment</a>
+    </nav>
+
+    <section class="hero">
+        <div class="card">
+            <div class="pill">Inventory Management</div>
+            <h1>Inventory History</h1>
+            <p>Inspect immutable receipt, issue, and adjustment records with date and type filters.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Stock Ledger
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">History is available to authenticated Warehouse and Owner users.</p>
+            </div>
+            <div class="pill" data-user-role>Authentication required</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-token-save>Save Token</button>
+                <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            </div>
+        </div>
+        <div class="message info" data-page-message hidden></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Filters</h2>
+                <p class="muted">Filter history by product, transaction type, and date range.</p>
+            </div>
+        </div>
+
+        <form class="form-grid" data-filter-form>
+            <div class="field">
+                <label for="productId">Product</label>
+                <select id="productId" name="productId">
+                    <option value="">All products</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="transactionType">Type</label>
+                <select id="transactionType" name="transactionType">
+                    <option value="">All types</option>
+                    <option value="RECEIPT">Receipt</option>
+                    <option value="ISSUE">Issue</option>
+                    <option value="ADJUSTMENT">Adjustment</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="fromDate">From Date</label>
+                <input id="fromDate" name="fromDate" type="date">
+            </div>
+            <div class="field">
+                <label for="toDate">To Date</label>
+                <input id="toDate" name="toDate" type="date">
+            </div>
+        </form>
+
+        <div class="toolbar" style="margin-top: 18px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-apply-filter>Apply Filters</button>
+                <button class="button secondary" type="button" data-reset-filter>Reset</button>
+            </div>
+            <div class="pill" data-pagination-label>Page 1</div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 18px;">
+            <table>
+                <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Before</th>
+                    <th>After</th>
+                    <th>Date</th>
+                    <th>Operator</th>
+                    <th>Reason / Note</th>
+                </tr>
+                </thead>
+                <tbody data-history-body>
+                <tr>
+                    <td colspan="8" class="empty-state">Load inventory history with a valid token.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="page-footer" style="margin-top: 18px;">
+            <div class="muted" data-total-label>0 transactions</div>
+            <div class="toolbar-inline">
+                <button class="button secondary" type="button" data-page-prev>Previous</button>
+                <button class="button secondary" type="button" data-page-next>Next</button>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script type="module" src="./history.js"></script>
+</body>
+</html>

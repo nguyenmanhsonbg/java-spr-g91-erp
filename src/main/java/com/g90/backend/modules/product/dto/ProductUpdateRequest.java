@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -41,6 +42,15 @@ public class ProductUpdateRequest {
     @DecimalMin(value = "0.0", message = "referenceWeight must be greater than or equal to 0")
     private BigDecimal referenceWeight;
 
+    @Size(max = 1000, message = "description must not exceed 1000 characters")
+    private String description;
+
     @NotBlank(message = "Status is required")
+    @Size(max = 20, message = "status must not exceed 20 characters")
     private String status;
+
+    private List<
+            @NotBlank(message = "imageUrls must not contain blank values")
+            @Size(max = 500, message = "Each image URL must not exceed 500 characters")
+            String> imageUrls;
 }

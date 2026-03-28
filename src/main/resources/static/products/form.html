@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create or Edit Product</title>
+    <link rel="stylesheet" href="./product.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div class="card">
+            <div class="pill">Product Management</div>
+            <h1 data-form-title>Product Editor</h1>
+            <p>Create or update steel catalog entries with required specifications, weight conversion, and optional image URLs.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Product Editor
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Warehouse access is required to create or update products.</p>
+            </div>
+            <div class="pill" data-user-role>Guest catalog access</div>
+        </div>
+
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token for warehouse actions">
+            </div>
+        </div>
+
+        <div class="toolbar" style="margin-top: 14px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-token-save>Save Token</button>
+                <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            </div>
+            <a class="button subtle" href="./index.html">Back to Catalog</a>
+        </div>
+
+        <div class="message info" data-form-message hidden></div>
+        <div class="readonly-banner" data-readonly-banner hidden></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Product Form</h2>
+                <p class="muted">Required fields are validated inline. Image URLs are optional and should be entered one per line.</p>
+            </div>
+            <button class="button danger" type="button" data-delete-button hidden>Archive Product</button>
+        </div>
+
+        <form data-product-form>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="productCode">Product Code</label>
+                    <input id="productCode" name="productCode" type="text" placeholder="SP-COIL-001">
+                    <div class="field-error" data-error-for="productCode"></div>
+                </div>
+                <div class="field wide">
+                    <label for="productName">Product Name</label>
+                    <input id="productName" name="productName" type="text" placeholder="Galvanized Steel Coil">
+                    <div class="field-error" data-error-for="productName"></div>
+                </div>
+                <div class="field">
+                    <label for="type">Type</label>
+                    <input id="type" name="type" type="text" placeholder="Coil">
+                    <div class="field-error" data-error-for="type"></div>
+                </div>
+                <div class="field">
+                    <label for="size">Size</label>
+                    <input id="size" name="size" type="text" placeholder="1200 x 2400">
+                    <div class="field-error" data-error-for="size"></div>
+                </div>
+                <div class="field">
+                    <label for="thickness">Thickness</label>
+                    <input id="thickness" name="thickness" type="text" placeholder="0.45">
+                    <div class="field-error" data-error-for="thickness"></div>
+                </div>
+                <div class="field">
+                    <label for="unit">Unit</label>
+                    <input id="unit" name="unit" type="text" placeholder="KG">
+                    <div class="field-error" data-error-for="unit"></div>
+                </div>
+                <div class="field">
+                    <label for="weightConversion">Weight Conversion</label>
+                    <input id="weightConversion" name="weightConversion" type="number" step="0.0001" min="0" placeholder="1.2500">
+                    <div class="field-error" data-error-for="weightConversion"></div>
+                </div>
+                <div class="field">
+                    <label for="referenceWeight">Reference Weight</label>
+                    <input id="referenceWeight" name="referenceWeight" type="number" step="0.0001" min="0" placeholder="1.2500">
+                    <div class="field-error" data-error-for="referenceWeight"></div>
+                </div>
+                <div class="field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                    <div class="field-error" data-error-for="status"></div>
+                </div>
+                <div class="field wide">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" placeholder="Optional technical note or catalog description"></textarea>
+                    <div class="field-error" data-error-for="description"></div>
+                </div>
+                <div class="field wide">
+                    <label for="imageUrls">Image URLs</label>
+                    <textarea id="imageUrls" name="imageUrls" placeholder="https://example.com/product-1.jpg&#10;https://example.com/product-2.jpg"></textarea>
+                    <div class="field-error" data-error-for="imageUrls"></div>
+                </div>
+            </div>
+
+            <div class="message error" data-validation-summary hidden></div>
+
+            <div class="toolbar" style="margin-top: 20px;">
+                <button class="button primary" type="submit" data-submit-button>Save Product</button>
+                <a class="button secondary" href="./index.html">Cancel</a>
+            </div>
+        </form>
+    </section>
+</main>
+
+<script type="module" src="./form.js"></script>
+</body>
+</html>

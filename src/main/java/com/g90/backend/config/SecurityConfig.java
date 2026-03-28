@@ -33,7 +33,6 @@ public class SecurityConfig {
     };
 
     private static final String[] PUBLIC_API_WHITELIST = {
-            "/api/products/**",
             "/api/auth/register",
             "/api/auth/verify-registration",
             "/api/auth/resend-verification-code",
@@ -71,6 +70,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(PUBLIC_API_WHITELIST).permitAll()
+                        .requestMatchers("/products/**").permitAll()
+                        .requestMatchers("/inventory/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products").hasRole("WAREHOUSE")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/*").hasRole("WAREHOUSE")
+                        .requestMatchers(HttpMethod.PATCH, "/api/products/*/status").hasRole("WAREHOUSE")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/*").hasAnyRole("WAREHOUSE", "OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/inventory/status", "/api/inventory/history").hasAnyRole("WAREHOUSE", "OWNER")
+                        .requestMatchers(HttpMethod.POST, "/api/inventory/receipts", "/api/inventory/issues", "/api/inventory/adjustments").hasRole("WAREHOUSE")
                         .requestMatchers("/api/customers/**")
                         .hasRole("ACCOUNTANT")
                         .requestMatchers("/api/customer/**")
@@ -105,7 +113,7 @@ public class SecurityConfig {
                         .hasAnyRole("ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.PATCH, "/api/projects/*/archive")
                         .hasAnyRole("ACCOUNTANT", "OWNER")
-                        .requestMatchers(HttpMethod.GET, "/api/price-lists", "/api/price-lists/**")
+                        .requestMatchers(HttpMethod.GET, "/api/price-lists", "/api/price-lists/*")
                         .hasAnyRole("OWNER", "ACCOUNTANT")
                         .requestMatchers(HttpMethod.GET, "/api/quotations", "/api/quotations/*", "/api/quotations/*/preview", "/api/quotations/*/history")
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
@@ -113,7 +121,7 @@ public class SecurityConfig {
                         .hasRole("CUSTOMER")
                         .requestMatchers(HttpMethod.PUT, "/api/quotations/*")
                         .hasRole("CUSTOMER")
-                        .requestMatchers("/api/price-list-items/**", "/api/price-lists/**")
+                        .requestMatchers("/api/price-lists/**")
                         .hasRole("OWNER")
                         .requestMatchers("/api/accounts/**")
                         .hasRole("OWNER")

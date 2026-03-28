@@ -5,7 +5,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,10 +38,10 @@ public class PriceListEntity {
     private String customerGroup;
 
     @Column(name = "start_date")
-    private LocalDate startDate;
+    private LocalDate validFrom;
 
     @Column(name = "end_date")
-    private LocalDate endDate;
+    private LocalDate validTo;
 
     @Column(name = "status", length = 20)
     private String status;
@@ -47,10 +49,20 @@ public class PriceListEntity {
     @Column(name = "created_by", length = 36)
     private String createdBy;
 
+    @Column(name = "updated_by", length = 36)
+    private String updatedBy;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "priceList", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @OneToMany(mappedBy = "priceList", cascade = CascadeType.ALL)
+    @OrderBy("createdAt asc")
     private List<PriceListItemEntity> items = new ArrayList<>();
 
     @PrePersist
@@ -64,5 +76,13 @@ public class PriceListEntity {
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);
         }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now(APP_ZONE);
     }
 }

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adjust Inventory</title>
+    <link rel="stylesheet" href="./inventory.css">
+</head>
+<body>
+<main class="shell">
+    <nav class="nav">
+        <a class="button subtle" href="./status.html">Status</a>
+        <a class="button subtle" href="./history.html">History</a>
+        <a class="button subtle" href="./receipt.html">Receipt</a>
+        <a class="button subtle" href="./issue.html">Issue</a>
+        <a class="button subtle" href="./adjustment.html">Adjustment</a>
+    </nav>
+
+    <section class="hero">
+        <div class="card">
+            <div class="pill">Inventory Management</div>
+            <h1>Adjust Inventory</h1>
+            <p>Apply a positive or negative stock correction with a mandatory reason and a preserved audit trail.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Stock Adjustment
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Only authenticated Warehouse users can create inventory adjustments.</p>
+            </div>
+            <div class="pill" data-user-role>Authentication required</div>
+        </div>
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token">
+            </div>
+        </div>
+        <div class="toolbar" style="margin-top: 14px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-token-save>Save Token</button>
+                <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            </div>
+        </div>
+        <div class="message info" data-form-message hidden></div>
+        <div class="readonly-banner" data-readonly-banner hidden></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Adjustment Form</h2>
+                <p class="muted">Use a positive number to increase stock or a negative number to decrease it. The resulting quantity must stay non-negative.</p>
+            </div>
+        </div>
+
+        <form data-adjustment-form>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="productId">Product</label>
+                    <select id="productId" name="productId">
+                        <option value="">Select product</option>
+                    </select>
+                    <div class="field-error" data-error-for="productId"></div>
+                </div>
+                <div class="field">
+                    <label for="adjustmentQuantity">Adjustment Quantity</label>
+                    <input id="adjustmentQuantity" name="adjustmentQuantity" type="number" step="0.01" placeholder="-10.00 or 15.00">
+                    <div class="field-error" data-error-for="adjustmentQuantity"></div>
+                </div>
+                <div class="field">
+                    <label for="reason">Reason</label>
+                    <input id="reason" name="reason" type="text" placeholder="Discrepancy or correction reason">
+                    <div class="field-error" data-error-for="reason"></div>
+                </div>
+                <div class="field wide">
+                    <label for="note">Note</label>
+                    <textarea id="note" name="note" placeholder="Optional adjustment note"></textarea>
+                    <div class="field-error" data-error-for="note"></div>
+                </div>
+            </div>
+
+            <div class="message error" data-validation-summary hidden></div>
+
+            <div class="toolbar" style="margin-top: 20px;">
+                <button class="button primary" type="submit" data-submit-button>Save Adjustment</button>
+                <a class="button secondary" href="./status.html">Cancel</a>
+            </div>
+        </form>
+    </section>
+</main>
+
+<script type="module" src="./adjustment.js"></script>
+</body>
+</html>

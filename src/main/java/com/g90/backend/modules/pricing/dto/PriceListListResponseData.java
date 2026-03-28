@@ -1,13 +1,20 @@
 package com.g90.backend.modules.pricing.dto;
 
+import com.g90.backend.modules.product.dto.PaginationResponse;
+import java.time.LocalDate;
 import java.util.List;
-import lombok.Builder;
 
-@Builder
 public record PriceListListResponseData(
-        List<PriceListListItemResponse> content,
-        int page,
-        int size,
-        long totalElements
+        List<PriceListListItemResponse> items,
+        PaginationResponse pagination,
+        Filters filters
 ) {
+    public record Filters(
+            String search,
+            String status,
+            String customerGroup,
+            LocalDate validFrom,
+            LocalDate validTo
+    ) {
+    }
 }

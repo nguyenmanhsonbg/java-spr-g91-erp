@@ -2,6 +2,7 @@ package com.g90.backend.modules.contract.repository;
 
 import com.g90.backend.modules.contract.entity.ContractEntity;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -15,6 +16,8 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     boolean existsByQuotation_Id(String quotationId);
+
+    boolean existsByPriceListIdAndStatusIn(String priceListId, Collection<String> statuses);
 
     boolean existsByContractNumberIgnoreCase(String contractNumber);
 

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <link rel="stylesheet" href="./product.css">
+</head>
+<body>
+<main class="shell">
+    <section class="hero">
+        <div class="card">
+            <div class="pill">Product Catalog</div>
+            <h1 data-detail-heading>Product Details</h1>
+            <p>Review the full specification, weight conversion, images, and current catalog status for a steel product.</p>
+        </div>
+        <div class="hero-mark">
+            G90 Steel
+            <br>
+            Product Detail
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Session</h2>
+                <p class="muted">Public product viewing is available without authentication. Warehouse tokens unlock edit and archive actions.</p>
+            </div>
+            <div class="pill" data-user-role>Guest catalog access</div>
+        </div>
+
+        <div class="token-grid">
+            <div class="field wide">
+                <label for="tokenInput">Access Token</label>
+                <input id="tokenInput" data-token-input type="password" placeholder="Paste bearer token for warehouse actions">
+            </div>
+        </div>
+
+        <div class="toolbar" style="margin-top: 14px;">
+            <div class="toolbar-inline">
+                <button class="button primary" type="button" data-token-save>Save Token</button>
+                <button class="button secondary" type="button" data-token-clear>Clear Token</button>
+            </div>
+            <a class="button subtle" href="./index.html">Back to Catalog</a>
+        </div>
+
+        <div class="message info" data-page-message hidden></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="section-title">Specification</h2>
+                <p class="muted">The catalog detail reflects the current public or warehouse-visible product state.</p>
+            </div>
+            <div class="detail-actions">
+                <a class="button subtle" href="./form.html" data-edit-link hidden>Edit Product</a>
+                <button class="button danger" type="button" data-delete-button hidden>Archive Product</button>
+            </div>
+        </div>
+
+        <div data-detail-shell class="detail-shell">
+            <div class="empty-state">Loading product details...</div>
+        </div>
+    </section>
+</main>
+
+<script type="module" src="./detail.js"></script>
+</body>
+</html>

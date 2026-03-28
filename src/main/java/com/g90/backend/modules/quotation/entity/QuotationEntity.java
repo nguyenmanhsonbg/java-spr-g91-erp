@@ -46,6 +46,9 @@ public class QuotationEntity {
     @JoinColumn(name = "project_id")
     private ProjectEntity project;
 
+    @Column(name = "price_list_id", length = 36)
+    private String priceListId;
+
     @Column(name = "total_amount", precision = 18, scale = 2)
     private BigDecimal totalAmount;
 

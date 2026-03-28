@@ -15,8 +15,10 @@ public class ProductListQuery {
     private Integer pageSize = 20;
 
     private String keyword;
+    private String search;
     private String type;
     private String size;
+    private String sizeValue;
     private String thickness;
     private String unit;
     private String status;

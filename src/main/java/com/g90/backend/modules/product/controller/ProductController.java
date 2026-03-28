@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -59,8 +60,13 @@ public class ProductController {
     @PatchMapping("/{id}/status")
     public ApiResponse<ProductStatusResponse> updateProductStatus(
             @PathVariable String id,
-            @RequestBody ProductStatusUpdateRequest request
+            @Valid @RequestBody ProductStatusUpdateRequest request
     ) {
         return ApiResponse.success("Product status updated successfully", productService.updateProductStatus(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<ProductStatusResponse> deleteProduct(@PathVariable String id) {
+        return ApiResponse.success("Product archived successfully", productService.deleteProduct(id));
     }
 }
