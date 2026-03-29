@@ -177,7 +177,7 @@ Request body thieu field:
 ### 5.3 Sample Request
 
 ```http
-GET /api/accounts?page=0&size=10&role=ACCOUNTANT&status=ACTIVE
+GET /api/accounts?page=1&pageSize=10&role=ACCOUNTANT&status=ACTIVE
 ```
 
 ### 5.4 Success Response

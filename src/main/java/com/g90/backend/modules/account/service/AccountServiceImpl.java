@@ -79,11 +79,11 @@ public class AccountServiceImpl implements AccountService {
         normalizeAndValidateQuery(query);
         Page<UserAccountEntity> page = userAccountRepository.findAll(
                 AccountSpecifications.withFilters(query),
-                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getSize()), Sort.by(Sort.Direction.DESC, "createdAt"))
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getPageSize()), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
         logAudit("VIEW_USER_LIST", null, null, auditPayload(
                 "page", query.getPage(),
-                "size", query.getSize(),
+                "pageSize", query.getPageSize(),
                 "role", query.getRole(),
                 "status", query.getStatus()
         ));

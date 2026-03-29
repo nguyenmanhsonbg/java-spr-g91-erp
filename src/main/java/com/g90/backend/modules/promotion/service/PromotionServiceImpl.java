@@ -123,7 +123,7 @@ public class PromotionServiceImpl implements PromotionService {
 
         Page<PromotionEntity> page = promotionRepository.findAll(
                 PromotionSpecifications.withFilters(query, viewer.internalView(), viewer.customerGroups()),
-                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getSize()), defaultSort())
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getPageSize()), defaultSort())
         );
         return promotionMapper.toListResponse(page, query);
     }

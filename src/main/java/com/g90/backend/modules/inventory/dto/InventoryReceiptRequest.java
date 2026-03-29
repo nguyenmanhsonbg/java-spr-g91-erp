@@ -1,5 +1,6 @@
 package com.g90.backend.modules.inventory.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ public class InventoryReceiptRequest {
     private BigDecimal quantity;
 
     @NotNull(message = "receiptDate is required")
+    @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
     private LocalDateTime receiptDate;
 
     @Size(max = 255, message = "supplierName must not exceed 255 characters")

@@ -15,9 +15,9 @@ public class PriceListListQuery {
     @Min(value = 1, message = "Page must be at least 1")
     private Integer page = 1;
 
-    @Min(value = 1, message = "Size must be at least 1")
-    @Max(value = 100, message = "Size must not exceed 100")
-    private Integer size = 20;
+    @Min(value = 1, message = "Page size must be at least 1")
+    @Max(value = 100, message = "Page size must not exceed 100")
+    private Integer pageSize = 20;
 
     @Size(max = 255, message = "Search must not exceed 255 characters")
     private String search;

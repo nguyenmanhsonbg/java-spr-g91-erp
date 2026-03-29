@@ -11,8 +11,8 @@ public class AccountListQuery {
     @Min(value = 1, message = "page must be greater than or equal to 1")
     private Integer page = 1;
 
-    @Min(value = 1, message = "size must be greater than 0")
-    private Integer size = 10;
+    @Min(value = 1, message = "pageSize must be greater than 0")
+    private Integer pageSize = 10;
 
     private String role;
     private String status;

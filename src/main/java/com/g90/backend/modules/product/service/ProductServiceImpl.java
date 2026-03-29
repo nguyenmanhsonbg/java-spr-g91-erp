@@ -263,12 +263,24 @@ public class ProductServiceImpl implements ProductService {
 
     private void normalizeAndValidateQuery(ProductListQuery query) {
         String keyword = StringUtils.hasText(query.getKeyword()) ? query.getKeyword() : query.getSearch();
-        String size = StringUtils.hasText(query.getSize()) ? query.getSize() : query.getSizeValue();
+        String rawSize = normalizeNullable(query.getSize());
+        String explicitSizeValue = normalizeNullable(query.getSizeValue());
 
+        Integer normalizedPageSize = query.getPageSize();
+        String resolvedSizeFilter;
+        if (normalizedPageSize == null && explicitSizeValue == null && isLegacyPageSizeAlias(rawSize)) {
+            normalizedPageSize = Integer.parseInt(rawSize);
+            resolvedSizeFilter = null;
+        } else {
+            resolvedSizeFilter = explicitSizeValue != null ? explicitSizeValue : rawSize;
+        }
+
+        query.setPage(normalizePage(query.getPage()));
+        query.setPageSize(normalizePageSize(normalizedPageSize));
         query.setKeyword(normalizeNullable(keyword));
         query.setSearch(query.getKeyword());
         query.setType(normalizeNullable(query.getType()));
-        query.setSize(normalizeNullable(size));
+        query.setSize(normalizeNullable(resolvedSizeFilter));
         query.setSizeValue(query.getSize());
         query.setThickness(normalizeNullable(query.getThickness()));
         query.setUnit(normalizeNullable(query.getUnit()));
@@ -285,6 +297,18 @@ public class ProductServiceImpl implements ProductService {
         if (!ALLOWED_SORT_DIRECTIONS.contains(query.getSortDir())) {
             throw RequestValidationException.singleError("sortDir", "sortDir must be asc or desc");
         }
+    }
+
+    private int normalizePage(Integer page) {
+        return page == null || page < 1 ? 1 : page;
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        return pageSize == null || pageSize < 1 ? 20 : pageSize;
+    }
+
+    private boolean isLegacyPageSizeAlias(String value) {
+        return StringUtils.hasText(value) && value.chars().allMatch(Character::isDigit);
     }
 
     private Sort buildSort(ProductListQuery query) {

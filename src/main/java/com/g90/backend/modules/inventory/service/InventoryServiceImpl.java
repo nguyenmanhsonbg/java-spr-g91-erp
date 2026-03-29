@@ -208,7 +208,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         Page<ProductEntity> page = productRepository.findAll(
                 InventoryProductSpecifications.withFilters(query),
-                PageRequest.of(query.getPage() - 1, query.getSize(), Sort.by(Sort.Direction.ASC, "productName"))
+                PageRequest.of(query.getPage() - 1, query.getPageSize(), Sort.by(Sort.Direction.ASC, "productName"))
         );
 
         List<String> productIds = page.getContent().stream().map(ProductEntity::getId).toList();
@@ -229,7 +229,7 @@ public class InventoryServiceImpl implements InventoryService {
                         .toList())
                 .pagination(InventoryPaginationResponse.builder()
                         .page(query.getPage())
-                        .size(query.getSize())
+                        .size(query.getPageSize())
                         .totalItems(page.getTotalElements())
                         .totalPages(page.getTotalPages())
                         .build())
@@ -248,7 +248,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         Page<InventoryTransactionEntity> page = inventoryTransactionRepository.findAll(
                 InventoryTransactionSpecifications.withFilters(query),
-                PageRequest.of(query.getPage() - 1, query.getSize(), Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "createdAt")))
+                PageRequest.of(query.getPage() - 1, query.getPageSize(), Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "createdAt")))
         );
 
         Map<String, String> operatorEmails = loadOperatorEmails(page.getContent());
@@ -258,7 +258,7 @@ public class InventoryServiceImpl implements InventoryService {
                         .toList())
                 .pagination(InventoryPaginationResponse.builder()
                         .page(query.getPage())
-                        .size(query.getSize())
+                        .size(query.getPageSize())
                         .totalItems(page.getTotalElements())
                         .totalPages(page.getTotalPages())
                         .build())
@@ -304,14 +304,14 @@ public class InventoryServiceImpl implements InventoryService {
 
     private void normalizeStatusQuery(InventoryStatusQuery query) {
         query.setPage(normalizePage(query.getPage()));
-        query.setSize(normalizeSize(query.getSize()));
+        query.setPageSize(normalizeSize(query.getPageSize()));
         query.setSearch(normalizeNullable(query.getSearch()));
         query.setProductId(normalizeNullable(query.getProductId()));
     }
 
     private void normalizeHistoryQuery(InventoryHistoryQuery query) {
         query.setPage(normalizePage(query.getPage()));
-        query.setSize(normalizeSize(query.getSize()));
+        query.setPageSize(normalizeSize(query.getPageSize()));
         query.setProductId(normalizeNullable(query.getProductId()));
         query.setTransactionType(normalizeNullable(query.getTransactionType()));
 

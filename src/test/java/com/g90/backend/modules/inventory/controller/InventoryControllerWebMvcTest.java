@@ -90,6 +90,28 @@ class InventoryControllerWebMvcTest {
     }
 
     @Test
+    void warehouseCanCreateInventoryReceiptWithDateOnlyReceiptDate() throws Exception {
+        authenticateAs(RoleName.WAREHOUSE);
+        when(inventoryService.createReceipt(any())).thenReturn(mutationResponse());
+
+        mockMvc.perform(post("/api/inventory/receipts")
+                        .header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "product-1",
+                                  "quantity": 100,
+                                  "receiptDate": "2026-03-03",
+                                  "reason": "Supplier delivery"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.transactionType").value("RECEIPT"))
+                .andExpect(jsonPath("$.data.productCode").value("SP001"));
+    }
+
+    @Test
     void unauthorizedUserCannotAccessInventoryApis() throws Exception {
         authenticateAs(RoleName.CUSTOMER);
 

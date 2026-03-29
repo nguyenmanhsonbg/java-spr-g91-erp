@@ -13,7 +13,7 @@ import {
 
 const state = {
     page: 1,
-    size: 10,
+    pageSize: 10,
     totalPages: 1,
     totalItems: 0,
     user: null
@@ -94,7 +94,7 @@ async function loadHistory() {
     try {
         const params = new URLSearchParams({
             page: String(state.page),
-            size: String(state.size)
+            pageSize: String(state.pageSize)
         });
         const formData = new FormData(filterForm);
         const productId = String(formData.get("productId") || "").trim();

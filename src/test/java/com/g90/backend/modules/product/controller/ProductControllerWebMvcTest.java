@@ -82,6 +82,15 @@ class ProductControllerWebMvcTest {
     }
 
     @Test
+    void productListRejectsPageBelowOne() throws Exception {
+        mockMvc.perform(get("/api/products?page=0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(productService);
+    }
+
+    @Test
     void warehouseCanCreateProduct() throws Exception {
         authenticateAs(RoleName.WAREHOUSE);
         when(productService.createProduct(any())).thenReturn(productResponse());

@@ -11,8 +11,8 @@ public class InventoryStatusQuery {
     @Min(value = 1, message = "page must be greater than 0")
     private Integer page = 1;
 
-    @Min(value = 1, message = "size must be greater than 0")
-    private Integer size = 20;
+    @Min(value = 1, message = "pageSize must be greater than 0")
+    private Integer pageSize = 20;
 
     private String search;
     private String productId;

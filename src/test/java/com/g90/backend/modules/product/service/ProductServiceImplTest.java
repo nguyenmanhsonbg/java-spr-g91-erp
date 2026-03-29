@@ -24,6 +24,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -108,6 +110,22 @@ class ProductServiceImplTest {
 
         assertThatThrownBy(() -> productService.createProduct(createRequest()))
                 .isInstanceOf(DuplicateProductCodeException.class);
+    }
+
+    @Test
+    void getProductsTreatsNumericSizeAsLegacyPageSizeAlias() {
+        var query = new com.g90.backend.modules.product.dto.ProductListQuery();
+        query.setPage(1);
+        query.setSize("1");
+        when(productRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(existingProduct()), PageRequest.of(0, 1), 1));
+
+        var response = productService.getProducts(query);
+
+        assertThat(response.pagination().page()).isEqualTo(1);
+        assertThat(response.pagination().pageSize()).isEqualTo(1);
+        assertThat(response.filters().size()).isNull();
+        assertThat(response.items()).hasSize(1);
     }
 
     @Test

@@ -104,7 +104,7 @@ public class PricingServiceImpl implements PricingService {
 
         Page<PriceListEntity> page = priceListRepository.findAll(
                 PricingSpecifications.withFilters(query),
-                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getSize()), Sort.by(Sort.Direction.DESC, "createdAt"))
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getPageSize()), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
         return pricingMapper.toListResponse(page, query);
     }

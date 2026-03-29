@@ -140,7 +140,7 @@ Status khong hop le:
 ### 4.2 Sample Request
 
 ```http
-GET /api/price-lists?page=0&size=10&status=ACTIVE&customerGroup=CONTRACTOR
+GET /api/price-lists?page=1&pageSize=10&status=ACTIVE&customerGroup=CONTRACTOR
 ```
 
 ### 4.3 Success Response

@@ -109,7 +109,7 @@ async function loadPriceLists() {
 
     const params = new URLSearchParams({
         page: String(state.page),
-        size: "20"
+        pageSize: "20"
     });
     for (const [key, value] of new FormData(filterForm).entries()) {
         if (value) {
