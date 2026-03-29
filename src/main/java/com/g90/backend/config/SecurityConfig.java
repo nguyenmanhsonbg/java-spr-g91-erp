@@ -108,6 +108,8 @@ public class SecurityConfig {
                         .hasRole("CUSTOMER")
                         .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*", "/api/projects/*/milestones")
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/warehouses")
+                        .hasAnyRole("WAREHOUSE", "ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.POST, "/api/projects")
                         .hasAnyRole("ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/restore", "/api/projects/*/warehouses", "/api/projects/*/progress", "/api/projects/*/close")
