@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +14,7 @@ import com.g90.backend.modules.account.entity.RoleEntity;
 import com.g90.backend.modules.account.entity.RoleName;
 import com.g90.backend.modules.account.entity.UserAccountEntity;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
+import com.g90.backend.modules.pricing.dto.PriceListCreateDataResponse;
 import com.g90.backend.modules.pricing.dto.PriceListListItemResponse;
 import com.g90.backend.modules.pricing.dto.PriceListListResponseData;
 import com.g90.backend.modules.pricing.service.PricingService;
@@ -31,6 +33,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(PricingController.class)
@@ -65,6 +68,36 @@ class PricingControllerWebMvcTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.items[0].name").value("April Pricing"))
                 .andExpect(jsonPath("$.data.items[0].status").value("ACTIVE"));
+    }
+
+    @Test
+    void ownerCanCreatePriceListWithUnitPriceAlias() throws Exception {
+        authenticateAs(RoleName.OWNER);
+        when(pricingService.createPriceList(any())).thenReturn(PriceListCreateDataResponse.builder()
+                .id("price-list-1")
+                .build());
+
+        mockMvc.perform(post("/api/price-lists")
+                        .header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "April Pricing",
+                                  "customerGroup": "CONTRACTOR",
+                                  "validFrom": "2026-04-01",
+                                  "validTo": "2026-04-30",
+                                  "items": [
+                                    {
+                                      "productId": "product-1",
+                                      "unitPrice": 120000.00,
+                                      "note": "Base price"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.id").value("price-list-1"));
     }
 
     @Test

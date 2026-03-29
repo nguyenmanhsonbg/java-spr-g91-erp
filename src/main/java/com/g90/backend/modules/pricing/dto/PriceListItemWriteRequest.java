@@ -1,5 +1,7 @@
 package com.g90.backend.modules.pricing.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +21,8 @@ public class PriceListItemWriteRequest {
     @Size(max = 36, message = "Product ID must not exceed 36 characters")
     private String productId;
 
+    @JsonProperty("unitPriceVnd")
+    @JsonAlias({"unitPrice", "unit_price_vnd", "unitPriceVND"})
     @NotNull(message = "Unit price in VND is required")
     @DecimalMin(value = "0.01", message = "Unit price in VND must be greater than 0")
     private BigDecimal unitPriceVnd;

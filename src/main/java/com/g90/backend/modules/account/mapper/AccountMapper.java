@@ -44,7 +44,7 @@ public class AccountMapper {
     public AccountListResponseData toListResponse(Page<UserAccountEntity> page) {
         return AccountListResponseData.builder()
                 .content(page.getContent().stream().map(this::toListItem).toList())
-                .page(page.getNumber())
+                .page(page.getNumber() + 1)
                 .size(page.getSize())
                 .totalElements(page.getTotalElements())
                 .build();

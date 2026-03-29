@@ -23,6 +23,7 @@ import com.g90.backend.modules.account.repository.AccountSpecifications;
 import com.g90.backend.modules.account.repository.AuditLogRepository;
 import com.g90.backend.modules.account.repository.RoleRepository;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -78,9 +79,9 @@ public class AccountServiceImpl implements AccountService {
         normalizeAndValidateQuery(query);
         Page<UserAccountEntity> page = userAccountRepository.findAll(
                 AccountSpecifications.withFilters(query),
-                PageRequest.of(query.getPage(), query.getSize(), Sort.by(Sort.Direction.DESC, "createdAt"))
+                PageRequest.of(normalizePage(query.getPage()) - 1, normalizeSize(query.getSize()), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        logAudit("VIEW_USER_LIST", null, null, Map.of(
+        logAudit("VIEW_USER_LIST", null, null, auditPayload(
                 "page", query.getPage(),
                 "size", query.getSize(),
                 "role", query.getRole(),
@@ -126,7 +127,7 @@ public class AccountServiceImpl implements AccountService {
         AccountDetailResponse oldState = accountMapper.toDetailResponse(account);
         account.setStatus(AccountStatus.INACTIVE.name());
         UserAccountEntity saved = userAccountRepository.save(account);
-        logAudit("DEACTIVATE_USER", saved.getId(), oldState, Map.of(
+        logAudit("DEACTIVATE_USER", saved.getId(), oldState, auditPayload(
                 "id", saved.getId(),
                 "status", saved.getStatus(),
                 "reason", normalizeNullable(request.getReason())
@@ -195,6 +196,14 @@ public class AccountServiceImpl implements AccountService {
         }
     }
 
+    private int normalizePage(Integer page) {
+        return page == null || page < 1 ? 1 : page;
+    }
+
+    private int normalizeSize(Integer size) {
+        return size == null || size < 1 ? 10 : size;
+    }
+
     private AccountStatus resolveStatus(String status) {
         try {
             return AccountStatus.from(status);
@@ -223,6 +232,18 @@ public class AccountServiceImpl implements AccountService {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Failed to serialize audit payload", exception);
         }
+    }
+
+    private Map<String, Object> auditPayload(Object... keyValues) {
+        if (keyValues.length % 2 != 0) {
+            throw new IllegalArgumentException("Audit payload requires key/value pairs");
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        for (int index = 0; index < keyValues.length; index += 2) {
+            payload.put(String.valueOf(keyValues[index]), keyValues[index + 1]);
+        }
+        return payload;
     }
 
     private String normalize(String value) {

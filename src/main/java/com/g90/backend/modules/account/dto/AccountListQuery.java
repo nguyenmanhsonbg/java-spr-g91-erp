@@ -8,8 +8,8 @@ import lombok.Setter;
 @Setter
 public class AccountListQuery {
 
-    @Min(value = 0, message = "page must be greater than or equal to 0")
-    private Integer page = 0;
+    @Min(value = 1, message = "page must be greater than or equal to 1")
+    private Integer page = 1;
 
     @Min(value = 1, message = "size must be greater than 0")
     private Integer size = 10;

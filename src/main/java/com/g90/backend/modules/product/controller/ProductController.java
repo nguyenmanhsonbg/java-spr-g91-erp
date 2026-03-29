@@ -1,5 +1,6 @@
 package com.g90.backend.modules.product.controller;
 
+import com.g90.backend.config.OpenApiConfig;
 import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.product.dto.ProductCreateRequest;
 import com.g90.backend.modules.product.dto.ProductListQuery;
@@ -9,6 +10,7 @@ import com.g90.backend.modules.product.dto.ProductStatusResponse;
 import com.g90.backend.modules.product.dto.ProductStatusUpdateRequest;
 import com.g90.backend.modules.product.dto.ProductUpdateRequest;
 import com.g90.backend.modules.product.service.ProductService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/products")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH_SCHEME)
 public class ProductController {
 
     private final ProductService productService;
