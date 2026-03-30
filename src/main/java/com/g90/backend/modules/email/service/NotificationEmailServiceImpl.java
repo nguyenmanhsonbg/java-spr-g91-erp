@@ -19,6 +19,7 @@ public class NotificationEmailServiceImpl implements NotificationEmailService {
     private static final String CONTRACT_DOCUMENT_TEMPLATE = "email/contract-document";
     private static final String CONTRACT_CREATED_TEMPLATE = "email/contract-created";
     private static final String CONTRACT_APPROVED_TEMPLATE = "email/contract-approved";
+    private static final String PROMOTION_CREATED_TEMPLATE = "email/promotion-created";
 
     private final EmailService emailService;
     private final EmailProperties emailProperties;
@@ -113,6 +114,32 @@ public class NotificationEmailServiceImpl implements NotificationEmailService {
                 to,
                 resolveCompanyName() + " contract approved " + payload.contractNumber(),
                 CONTRACT_APPROVED_TEMPLATE,
+                variables
+        );
+    }
+
+    @Override
+    public void sendPromotionCreatedEmail(String to, String recipientName, PromotionCreatedEmailPayload payload) {
+        Map<String, Object> variables = baseVariables(recipientName);
+        variables.put("promotionCode", payload.promotionCode());
+        variables.put("promotionName", payload.promotionName());
+        variables.put("promotionType", payload.promotionType());
+        variables.put("discountValue", payload.discountValue());
+        variables.put("validFrom", payload.validFrom());
+        variables.put("validTo", payload.validTo());
+        variables.put("status", payload.status());
+        variables.put("description", payload.description());
+        variables.put(
+                "customerGroupScope",
+                payload.customerGroups() == null || payload.customerGroups().isEmpty()
+                        ? "All customer groups"
+                        : String.join(", ", payload.customerGroups())
+        );
+
+        emailService.sendHtmlEmail(
+                to,
+                resolveCompanyName() + " new promotion " + payload.promotionCode(),
+                PROMOTION_CREATED_TEMPLATE,
                 variables
         );
     }

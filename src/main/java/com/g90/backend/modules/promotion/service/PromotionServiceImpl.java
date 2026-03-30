@@ -25,6 +25,7 @@ import com.g90.backend.modules.promotion.entity.PromotionEntity;
 import com.g90.backend.modules.promotion.entity.PromotionProductEntity;
 import com.g90.backend.modules.promotion.entity.PromotionStatus;
 import com.g90.backend.modules.promotion.entity.PromotionType;
+import com.g90.backend.modules.promotion.integration.PromotionNotificationGateway;
 import com.g90.backend.modules.promotion.mapper.PromotionMapper;
 import com.g90.backend.modules.promotion.repository.PromotionRepository;
 import com.g90.backend.modules.promotion.repository.PromotionSpecifications;
@@ -75,6 +76,7 @@ public class PromotionServiceImpl implements PromotionService {
     private final CustomerProfileRepository customerProfileRepository;
     private final AuditLogRepository auditLogRepository;
     private final PromotionMapper promotionMapper;
+    private final PromotionNotificationGateway promotionNotificationGateway;
     private final CurrentUserProvider currentUserProvider;
     private final ObjectMapper objectMapper;
 
@@ -111,6 +113,7 @@ public class PromotionServiceImpl implements PromotionService {
 
         PromotionEntity saved = promotionRepository.save(entity);
         PromotionCreateDataResponse response = promotionMapper.toCreateData(saved);
+        promotionNotificationGateway.notifyPromotionCreated(saved);
         logAudit("CREATE_PROMOTION", saved.getId(), null, promotionMapper.toDetailResponse(saved), currentUser.userId());
         return response;
     }
