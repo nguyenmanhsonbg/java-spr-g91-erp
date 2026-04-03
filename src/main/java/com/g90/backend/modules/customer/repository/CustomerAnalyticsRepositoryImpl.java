@@ -45,7 +45,7 @@ public class CustomerAnalyticsRepositoryImpl implements CustomerAnalyticsReposit
                         select coalesce(sum(coalesce(total_amount, 0) + coalesce(vat_amount, 0)), 0)
                         from invoices
                         where customer_id = :customerId
-                          and upper(coalesce(status, '')) not in ('CANCELLED', 'VOID')
+                          and upper(coalesce(status, '')) not in ('DRAFT', 'CANCELLED', 'VOID')
                         """,
                         customerId
                 ),

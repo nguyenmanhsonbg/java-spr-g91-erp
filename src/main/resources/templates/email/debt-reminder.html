@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Debt Reminder</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #1f2937;">
+<p th:text="'Dear ' + ${recipientName} + ','">Dear Customer,</p>
+<p th:text="${message}">This is a reminder about your overdue invoices.</p>
+
+<table style="border-collapse: collapse; width: 100%; margin-top: 16px;">
+    <thead>
+    <tr>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Invoice</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Due Date</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Remaining</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Overdue Days</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="invoice : ${invoices}">
+        <td style="border: 1px solid #d1d5db; padding: 8px;" th:text="${invoice.invoiceNumber}">INV-001</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px;" th:text="${invoice.dueDate}">2026-04-01</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;" th:text="${invoice.remainingAmount}">1000000.00</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;" th:text="${invoice.overdueDays}">7</td>
+    </tr>
+    </tbody>
+</table>
+
+<p style="margin-top: 16px;">Please contact our accounting team if you need assistance.</p>
+<p th:text="'Sent at: ' + ${sentAt}">Sent at: 2026-04-03T10:00:00</p>
+</body>
+</html>

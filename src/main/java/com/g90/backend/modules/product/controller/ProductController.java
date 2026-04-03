@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.ArrayList;
 import java.util.List;
 
 @Validated
@@ -56,10 +57,36 @@ public class ProductController {
         return ApiResponse.success("Product images uploaded successfully", new ProductImageUploadResponse(uploadedUrls));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductCreateRequest request) {
+        return createProductResponse(request);
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<ProductResponse>> createProductWithImages(
+            @Valid @ModelAttribute ProductCreateRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files
+    ) {
+        mergeUploadedImageUrls(request, files);
+        return createProductResponse(request);
+    }
+
+    private ResponseEntity<ApiResponse<ProductResponse>> createProductResponse(ProductCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Product created successfully", productService.createProduct(request)));
+    }
+
+    private void mergeUploadedImageUrls(ProductCreateRequest request, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+
+        List<String> mergedImageUrls = new ArrayList<>();
+        if (request.getImageUrls() != null) {
+            mergedImageUrls.addAll(request.getImageUrls());
+        }
+        mergedImageUrls.addAll(productImageStorageService.store(files));
+        request.setImageUrls(mergedImageUrls);
     }
 
     @GetMapping("/{id}")

@@ -41,7 +41,7 @@ class JpaContractCreditGateway implements ContractCreditGateway {
                         GROUP BY p.invoice_id
                     ) pa ON pa.invoice_id = i.id
                     WHERE i.customer_id = :customerId
-                      AND UPPER(COALESCE(i.status, 'OPEN')) <> 'PAID'
+                      AND UPPER(COALESCE(i.status, 'OPEN')) NOT IN ('PAID', 'CANCELLED', 'VOID', 'DRAFT')
                     """)
                     .setParameter("customerId", customer.getId())
                     .getSingleResult();

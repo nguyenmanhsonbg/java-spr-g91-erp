@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Updated</title>
+</head>
+<body>
+<p>Dear <span th:text="${recipientName}">Customer</span>,</p>
+<p>Your invoice <strong th:text="${invoiceNumber}">INV-0001</strong> has been updated.</p>
+<p>
+    Updated due date: <span th:text="${dueDate}">2026-04-30</span><br>
+    Updated total amount: <span th:text="${grandTotal}">0</span><br>
+    Current status: <span th:text="${status}">ISSUED</span>
+</p>
+<p th:if="${note != null}">Note: <span th:text="${note}">N/A</span></p>
+<p th:if="${documentUrl != null}">
+    Document: <a th:href="${documentUrl}" th:text="${documentUrl}">download</a>
+</p>
+</body>
+</html>

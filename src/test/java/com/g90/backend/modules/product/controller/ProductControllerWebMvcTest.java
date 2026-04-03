@@ -1,10 +1,13 @@
 package com.g90.backend.modules.product.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,6 +24,7 @@ import com.g90.backend.modules.product.dto.ProductFiltersResponse;
 import com.g90.backend.modules.product.dto.ProductListResponseData;
 import com.g90.backend.modules.product.dto.ProductResponse;
 import com.g90.backend.modules.product.service.ProductService;
+import com.g90.backend.modules.product.storage.ProductImageStorageService;
 import com.g90.backend.security.AccessTokenService;
 import com.g90.backend.security.BearerTokenAuthenticationFilter;
 import com.g90.backend.security.RestAccessDeniedHandler;
@@ -36,6 +40,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ProductController.class)
@@ -53,6 +58,9 @@ class ProductControllerWebMvcTest {
 
     @MockBean
     private ProductService productService;
+
+    @MockBean
+    private ProductImageStorageService productImageStorageService;
 
     @MockBean
     private AccessTokenService accessTokenService;
@@ -114,6 +122,43 @@ class ProductControllerWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.productCode").value("SP001"));
+    }
+
+    @Test
+    void warehouseCanCreateProductWithMultipartImages() throws Exception {
+        authenticateAs(RoleName.WAREHOUSE);
+        when(productImageStorageService.store(any())).thenReturn(List.of(
+                "/uploads/products/uploaded-1.jpg",
+                "/uploads/products/uploaded-2.jpg"
+        ));
+        when(productService.createProduct(any())).thenReturn(productResponse());
+
+        mockMvc.perform(multipart("/api/products")
+                        .file(new MockMultipartFile("files", "coil-1.jpg", MediaType.IMAGE_JPEG_VALUE, "img-1".getBytes()))
+                        .file(new MockMultipartFile("files", "coil-2.png", MediaType.IMAGE_PNG_VALUE, "img-2".getBytes()))
+                        .param("productCode", "SP001")
+                        .param("productName", "Steel Coil Prime")
+                        .param("type", "COIL")
+                        .param("size", "1200 x 2400")
+                        .param("thickness", "0.45")
+                        .param("unit", "KG")
+                        .param("weightConversion", "1.25")
+                        .param("referenceWeight", "1.26")
+                        .param("description", "Primary warehouse coil")
+                        .param("imageUrls", "https://cdn.example.com/existing.jpg")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.productCode").value("SP001"));
+
+        verify(productImageStorageService).store(any());
+        verify(productService).createProduct(argThat(request ->
+                request.getImageUrls() != null
+                        && request.getImageUrls().size() == 3
+                        && request.getImageUrls().contains("https://cdn.example.com/existing.jpg")
+                        && request.getImageUrls().contains("/uploads/products/uploaded-1.jpg")
+                        && request.getImageUrls().contains("/uploads/products/uploaded-2.jpg")
+        ));
     }
 
     @Test
