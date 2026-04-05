@@ -14,6 +14,7 @@ public final class InventoryTransactionSpecifications {
     public static Specification<InventoryTransactionEntity> withFilters(InventoryHistoryQuery query) {
         return Specification.allOf(
                 productEquals(query.getProductId()),
+                relatedOrderEquals(query.getRelatedOrderId()),
                 typeEquals(query.getTransactionType()),
                 fromDate(query.getFromDate() == null ? null : query.getFromDate().atStartOfDay()),
                 toDate(query.getToDate() == null ? null : query.getToDate().atTime(23, 59, 59))
@@ -35,6 +36,15 @@ public final class InventoryTransactionSpecifications {
                 return criteriaBuilder.conjunction();
             }
             return criteriaBuilder.equal(criteriaBuilder.upper(root.get("transactionType")), transactionType.trim().toUpperCase());
+        };
+    }
+
+    private static Specification<InventoryTransactionEntity> relatedOrderEquals(String relatedOrderId) {
+        return (root, criteriaQuery, criteriaBuilder) -> {
+            if (!StringUtils.hasText(relatedOrderId)) {
+                return criteriaBuilder.conjunction();
+            }
+            return criteriaBuilder.equal(root.get("relatedOrderId"), relatedOrderId.trim());
         };
     }
 

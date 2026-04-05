@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record ContractResponse(
         String id,
         String contractNumber,
+        String saleOrderNumber,
         String customerId,
         String customerName,
         String quotationId,
@@ -19,6 +20,7 @@ public record ContractResponse(
         String deliveryAddress,
         String deliveryTerms,
         LocalDate expectedDeliveryDate,
+        LocalDate actualDeliveryDate,
         String note,
         BigDecimal totalAmount,
         BigDecimal creditLimitSnapshot,

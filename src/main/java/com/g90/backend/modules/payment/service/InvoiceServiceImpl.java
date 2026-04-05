@@ -56,7 +56,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private static final BigDecimal VAT_WITH_TAX_CODE = new BigDecimal("10.00").setScale(2, RoundingMode.HALF_UP);
     private static final BigDecimal UPDATE_APPROVAL_THRESHOLD = new BigDecimal("1.05");
     private static final Set<String> ALLOWED_CREATE_STATUSES = Set.of("DRAFT", "ISSUED");
-    private static final Set<String> ACTIVE_CONTRACT_STATUSES = Set.of("SUBMITTED", "PROCESSING", "RESERVED", "PICKED", "IN_TRANSIT", "DELIVERED", "COMPLETED");
+    private static final Set<String> INVOICE_ELIGIBLE_CONTRACT_STATUSES = Set.of("DELIVERED", "COMPLETED");
     private static final Set<String> UPDATABLE_INVOICE_STATUSES = Set.of("DRAFT", "ISSUED");
     private static final Set<String> LOCKED_INVOICE_STATUSES = Set.of("PARTIALLY_PAID", "PAID", "SETTLED", "CANCELLED", "VOID");
     private static final Set<String> ALLOWED_LIST_STATUSES = Set.of("DRAFT", "ISSUED", "PARTIALLY_PAID", "PAID", "CANCELLED", "VOID");
@@ -358,8 +358,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (contract.getCustomer() == null) {
             throw RequestValidationException.singleError("contractId", "Contract is missing customer information");
         }
-        if (!ACTIVE_CONTRACT_STATUSES.contains(normalizeUpper(contract.getStatus()))) {
-            throw RequestValidationException.singleError("contractId", "Invoice can only be created from a submitted or active contract");
+        if (!INVOICE_ELIGIBLE_CONTRACT_STATUSES.contains(normalizeUpper(contract.getStatus()))) {
+            throw RequestValidationException.singleError("contractId", "Invoice can only be created from a delivered or completed sale order");
         }
         return contract;
     }

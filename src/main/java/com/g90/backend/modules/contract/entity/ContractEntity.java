@@ -40,6 +40,9 @@ public class ContractEntity {
     @Column(name = "contract_number", length = 50)
     private String contractNumber;
 
+    @Column(name = "sale_order_number", length = 50)
+    private String saleOrderNumber;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private CustomerProfileEntity customer;
@@ -68,6 +71,9 @@ public class ContractEntity {
 
     @Column(name = "expected_delivery_date")
     private LocalDate expectedDeliveryDate;
+
+    @Column(name = "actual_delivery_date")
+    private LocalDate actualDeliveryDate;
 
     @Column(name = "note", length = 1000)
     private String note;

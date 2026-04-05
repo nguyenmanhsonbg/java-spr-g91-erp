@@ -543,12 +543,8 @@ public class ContractServiceImpl implements ContractService {
         }
 
         String previousStatus = contract.getStatus();
-        contract.setStatus(ContractStatus.SUBMITTED.name());
-        contract.setSubmittedBy(currentUser.userId());
-        contract.setSubmittedAt(LocalDateTime.now(APP_ZONE));
-        contract.setPendingAction(null);
         contract.setApprovalStatus(ContractApprovalStatus.NOT_REQUIRED.name());
-        contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
+        prepareSubmittedContract(contract, currentUser.userId());
         ContractEntity saved = contractRepository.save(contract);
 
         recordStatusHistory(saved, previousStatus, ContractStatus.SUBMITTED.name(), normalizeNullable(request.getSubmissionNote()), currentUser.userId());
@@ -1240,11 +1236,7 @@ public class ContractServiceImpl implements ContractService {
                 contractNotificationGateway.notifyCancellation(contract, "Cancellation approved");
             } else {
                 assertInventoryAvailable(contract);
-                contract.setStatus(ContractStatus.SUBMITTED.name());
-                contract.setSubmittedBy(currentUser.userId());
-                if (contract.getSubmittedAt() == null) {
-                    contract.setSubmittedAt(LocalDateTime.now(APP_ZONE));
-                }
+                prepareSubmittedContract(contract, currentUser.userId());
                 contractInventoryGateway.reserveInventory(contract);
                 recordTrackingEvent(contract, ContractTrackingEventType.APPROVED, ContractStatus.SUBMITTED.name(), "Approval granted", normalizeNullable(request.getComment()), null, null, currentUser.userId());
                 recordTrackingEvent(contract, ContractTrackingEventType.INVENTORY_RESERVED, ContractStatus.SUBMITTED.name(), "Inventory reserved", "Reservation requested for fulfillment", null, null, currentUser.userId());
@@ -1455,6 +1447,33 @@ public class ContractServiceImpl implements ContractService {
         return contractDocumentRepository.countByDocumentTypeAndOfficialDocumentTrueAndGeneratedAtBetween(documentType.name(), start, end) + 1;
     }
 
+    private void prepareSubmittedContract(ContractEntity contract, String userId) {
+        LocalDateTime submittedAt = contract.getSubmittedAt() == null ? LocalDateTime.now(APP_ZONE) : contract.getSubmittedAt();
+        contract.setStatus(ContractStatus.SUBMITTED.name());
+        contract.setSubmittedBy(userId);
+        contract.setSubmittedAt(submittedAt);
+        contract.setPendingAction(null);
+        contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
+        if (!StringUtils.hasText(contract.getSaleOrderNumber())) {
+            contract.setSaleOrderNumber(generateSaleOrderNumber(submittedAt));
+        }
+        if (contract.getItems() == null) {
+            return;
+        }
+        for (ContractItemEntity item : contract.getItems()) {
+            if (item == null) {
+                continue;
+            }
+            item.setReservedQuantity(defaultQuantity(item.getQuantity()));
+            if (item.getIssuedQuantity() == null) {
+                item.setIssuedQuantity(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+            }
+            if (item.getDeliveredQuantity() == null) {
+                item.setDeliveredQuantity(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+            }
+        }
+    }
+
     private BigDecimal computePriceChangePercent(ContractEntity contract, List<ContractItemRequest> updatedItems) {
         if (updatedItems == null || updatedItems.isEmpty() || contract.getItems() == null || contract.getItems().isEmpty()) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -1484,6 +1503,14 @@ public class ContractServiceImpl implements ContractService {
         return "CT-" + today.format(DateTimeFormatter.BASIC_ISO_DATE) + "-" + String.format("%04d", sequence);
     }
 
+    private String generateSaleOrderNumber(LocalDateTime submittedAt) {
+        LocalDate effectiveDate = submittedAt == null ? LocalDate.now(APP_ZONE) : submittedAt.toLocalDate();
+        LocalDateTime startOfDay = effectiveDate.atStartOfDay();
+        LocalDateTime endOfDay = effectiveDate.plusDays(1).atStartOfDay();
+        long sequence = contractRepository.countBySubmittedAtBetween(startOfDay, endOfDay) + 1;
+        return "SO-" + effectiveDate.format(DateTimeFormatter.BASIC_ISO_DATE) + "-" + String.format("%04d", sequence);
+    }
+
     private Sort buildContractSort(ContractListQuery query) {
         String sortBy = StringUtils.hasText(query.getSortBy()) && CONTRACT_SORT_FIELDS.contains(query.getSortBy())
                 ? query.getSortBy()
@@ -1510,6 +1537,10 @@ public class ContractServiceImpl implements ContractService {
 
     private BigDecimal defaultIfNull(BigDecimal value) {
         return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : normalizeMoney(value);
+    }
+
+    private BigDecimal defaultQuantity(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : value.setScale(2, RoundingMode.HALF_UP);
     }
 
     private String resolvePriceListId(

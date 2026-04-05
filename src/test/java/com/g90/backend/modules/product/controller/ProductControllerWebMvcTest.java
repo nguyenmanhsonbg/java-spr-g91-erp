@@ -162,6 +162,43 @@ class ProductControllerWebMvcTest {
     }
 
     @Test
+    void warehouseCanUpdateProductWithMultipartImages() throws Exception {
+        authenticateAs(RoleName.WAREHOUSE);
+        when(productImageStorageService.store(any())).thenReturn(List.of("/uploads/products/updated-1.jpg"));
+        when(productService.updateProduct(any(), any())).thenReturn(productResponse());
+
+        mockMvc.perform(multipart("/api/products/product-1")
+                        .file(new MockMultipartFile("files", "coil-update.jpg", MediaType.IMAGE_JPEG_VALUE, "img-update".getBytes()))
+                        .param("productCode", "SP001")
+                        .param("productName", "Steel Coil Prime")
+                        .param("type", "COIL")
+                        .param("size", "1200 x 2400")
+                        .param("thickness", "0.45")
+                        .param("unit", "KG")
+                        .param("weightConversion", "1.25")
+                        .param("referenceWeight", "1.26")
+                        .param("description", "Primary warehouse coil")
+                        .param("status", "ACTIVE")
+                        .param("imageUrls", "https://cdn.example.com/existing-update.jpg")
+                        .header("Authorization", "Bearer token")
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        }))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.productCode").value("SP001"));
+
+        verify(productImageStorageService).store(any());
+        verify(productService).updateProduct(argThat(id -> "product-1".equals(id)), argThat(request ->
+                request.getImageUrls() != null
+                        && request.getImageUrls().size() == 2
+                        && request.getImageUrls().contains("https://cdn.example.com/existing-update.jpg")
+                        && request.getImageUrls().contains("/uploads/products/updated-1.jpg")
+        ));
+    }
+
+    @Test
     void createProductMissingRequiredFieldsRejected() throws Exception {
         authenticateAs(RoleName.WAREHOUSE);
 

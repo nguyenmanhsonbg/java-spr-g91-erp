@@ -36,6 +36,18 @@ public class ContractItemEntity {
     @Column(name = "quantity", precision = 18, scale = 2)
     private BigDecimal quantity;
 
+    @Column(name = "reserved_quantity", precision = 18, scale = 2)
+    private BigDecimal reservedQuantity;
+
+    @Column(name = "issued_quantity", precision = 18, scale = 2)
+    private BigDecimal issuedQuantity;
+
+    @Column(name = "delivered_quantity", precision = 18, scale = 2)
+    private BigDecimal deliveredQuantity;
+
+    @Column(name = "fulfillment_note", length = 500)
+    private String fulfillmentNote;
+
     @Column(name = "unit_price", precision = 18, scale = 2)
     private BigDecimal unitPrice;
 
@@ -58,6 +70,15 @@ public class ContractItemEntity {
         }
         if (discountAmount == null) {
             discountAmount = BigDecimal.ZERO.setScale(2);
+        }
+        if (reservedQuantity == null) {
+            reservedQuantity = BigDecimal.ZERO.setScale(2);
+        }
+        if (issuedQuantity == null) {
+            issuedQuantity = BigDecimal.ZERO.setScale(2);
+        }
+        if (deliveredQuantity == null) {
+            deliveredQuantity = BigDecimal.ZERO.setScale(2);
         }
     }
 }

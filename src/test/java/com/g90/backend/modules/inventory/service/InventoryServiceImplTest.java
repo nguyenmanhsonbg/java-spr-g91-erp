@@ -26,6 +26,7 @@ import com.g90.backend.modules.product.entity.ProductStatus;
 import com.g90.backend.modules.product.repository.ProductRepository;
 import com.g90.backend.modules.project.entity.WarehouseEntity;
 import com.g90.backend.modules.project.repository.WarehouseRepository;
+import com.g90.backend.modules.saleorder.service.SaleOrderService;
 import com.g90.backend.security.AuthenticatedUser;
 import com.g90.backend.security.CurrentUserProvider;
 import java.math.BigDecimal;
@@ -59,6 +60,8 @@ class InventoryServiceImplTest {
     private AuditLogRepository auditLogRepository;
     @Mock
     private CurrentUserProvider currentUserProvider;
+    @Mock
+    private SaleOrderService saleOrderService;
 
     private final InventoryMapper inventoryMapper = new InventoryMapper();
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -76,6 +79,7 @@ class InventoryServiceImplTest {
                 auditLogRepository,
                 currentUserProvider,
                 inventoryMapper,
+                saleOrderService,
                 objectMapper
         );
 
@@ -134,6 +138,7 @@ class InventoryServiceImplTest {
         assertThat(response.quantityBefore()).isEqualByComparingTo("150.00");
         assertThat(response.quantityAfter()).isEqualByComparingTo("100.00");
         assertThat(stock.getQuantity()).isEqualByComparingTo("100.00");
+        org.mockito.Mockito.verify(saleOrderService).registerInventoryIssue("contract-1", "product-1", new BigDecimal("50.00"), null, "warehouse-1");
     }
 
     @Test
@@ -144,6 +149,16 @@ class InventoryServiceImplTest {
 
         assertThatThrownBy(() -> inventoryService.createIssue(issueRequest("50.00")))
                 .isInstanceOf(InsufficientInventoryException.class);
+    }
+
+    @Test
+    void createInventoryIssueRejectedWhenRelatedReferenceMissing() {
+        authenticateAs(RoleName.WAREHOUSE);
+        InventoryIssueRequest request = issueRequest("10.00");
+        request.setRelatedOrderId(null);
+
+        assertThatThrownBy(() -> inventoryService.createIssue(request))
+                .isInstanceOf(RequestValidationException.class);
     }
 
     @Test
@@ -194,7 +209,7 @@ class InventoryServiceImplTest {
         InventoryIssueRequest request = new InventoryIssueRequest();
         request.setProductId("product-1");
         request.setQuantity(new BigDecimal(quantity));
-        request.setRelatedProjectId("project-1");
+        request.setRelatedOrderId("contract-1");
         request.setReason("Project delivery");
         return request;
     }

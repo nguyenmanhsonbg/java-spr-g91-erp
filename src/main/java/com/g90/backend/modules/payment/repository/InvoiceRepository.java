@@ -27,6 +27,10 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, String> 
     @Query("select i from PaymentInvoiceEntity i where i.customer.id = :customerId")
     List<InvoiceEntity> findByCustomerIdWithCustomerAndContract(@Param("customerId") String customerId);
 
+    @EntityGraph(attributePaths = {"customer", "customer.user", "contract"})
+    @Query("select i from PaymentInvoiceEntity i where i.contract.id = :contractId order by i.issueDate desc, i.createdAt desc")
+    List<InvoiceEntity> findByContractIdWithCustomerAndContract(@Param("contractId") String contractId);
+
     @Query("""
             select distinct i
             from PaymentInvoiceEntity i

@@ -371,6 +371,7 @@ class ContractServiceImplTest {
         var response = contractService.submitContract("contract-1", new ContractSubmitRequest());
 
         assertThat(response.contractStatus()).isEqualTo(ContractStatus.SUBMITTED.name());
+        assertThat(contract.getSaleOrderNumber()).startsWith("SO-");
         verify(contractInventoryGateway).reserveInventory(any());
     }
 
@@ -444,6 +445,7 @@ class ContractServiceImplTest {
 
         assertThat(response.decision()).isEqualTo("APPROVED");
         assertThat(response.contractStatus()).isEqualTo(ContractStatus.SUBMITTED.name());
+        assertThat(contract.getSaleOrderNumber()).startsWith("SO-");
         verify(contractNotificationGateway).notifyContractApproved(any(), anyString());
     }
 

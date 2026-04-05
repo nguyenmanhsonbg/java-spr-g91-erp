@@ -157,6 +157,23 @@ class InvoiceServiceImplTest {
         verify(invoiceRepository, atLeastOnce()).save(any());
     }
 
+    @Test
+    void createInvoiceRejectedBeforeDelivery() {
+        authenticateAs(RoleName.ACCOUNTANT);
+        ContractEntity contract = contract();
+        contract.setStatus("PROCESSING");
+        when(contractRepository.findDetailedById("contract-1")).thenReturn(Optional.of(contract));
+
+        InvoiceCreateRequest request = new InvoiceCreateRequest();
+        request.setContractId("contract-1");
+        request.setIssueDate(LocalDate.of(2026, 4, 3));
+        request.setDueDate(LocalDate.of(2026, 4, 30));
+        request.setStatus("ISSUED");
+
+        assertThatThrownBy(() -> invoiceService.createInvoice(request))
+                .isInstanceOf(com.g90.backend.exception.RequestValidationException.class);
+    }
+
     private void authenticateAs(RoleName roleName) {
         String userId = roleName == RoleName.CUSTOMER ? "customer-user-1" : "accountant-1";
         when(currentUserProvider.getCurrentUser()).thenReturn(
@@ -182,7 +199,7 @@ class InvoiceServiceImplTest {
         ContractEntity contract = new ContractEntity();
         contract.setId("contract-1");
         contract.setContractNumber("CT-001");
-        contract.setStatus("SUBMITTED");
+        contract.setStatus("DELIVERED");
         contract.setCustomer(customer);
         contract.setPaymentTerms("30 days");
         contract.setItems(List.of(item));

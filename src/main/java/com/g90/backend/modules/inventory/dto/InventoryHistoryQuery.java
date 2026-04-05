@@ -16,6 +16,7 @@ public class InventoryHistoryQuery {
     private Integer pageSize = 20;
 
     private String productId;
+    private String relatedOrderId;
     private String transactionType;
     private LocalDate fromDate;
     private LocalDate toDate;

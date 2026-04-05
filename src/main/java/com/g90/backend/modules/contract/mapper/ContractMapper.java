@@ -21,6 +21,7 @@ public class ContractMapper {
         return new ContractResponse(
                 contract.getId(),
                 contract.getContractNumber(),
+                contract.getSaleOrderNumber(),
                 contract.getCustomer() == null ? null : contract.getCustomer().getId(),
                 contract.getCustomer() == null ? null : contract.getCustomer().getCompanyName(),
                 contract.getQuotation() == null ? null : contract.getQuotation().getId(),
@@ -33,6 +34,7 @@ public class ContractMapper {
                 contract.getDeliveryAddress(),
                 contract.getDeliveryTerms(),
                 contract.getExpectedDeliveryDate(),
+                contract.getActualDeliveryDate(),
                 contract.getNote(),
                 contract.getTotalAmount(),
                 contract.getCreditLimitSnapshot(),

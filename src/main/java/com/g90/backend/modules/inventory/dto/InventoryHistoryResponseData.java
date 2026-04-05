@@ -13,6 +13,7 @@ public record InventoryHistoryResponseData(
     @Builder
     public record Filters(
             String productId,
+            String relatedOrderId,
             String transactionType,
             LocalDate fromDate,
             LocalDate toDate

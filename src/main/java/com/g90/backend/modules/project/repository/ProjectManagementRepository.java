@@ -1,6 +1,8 @@
 package com.g90.backend.modules.project.repository;
 
 import com.g90.backend.modules.project.entity.ProjectManagementEntity;
+import java.util.Collection;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -20,4 +22,10 @@ public interface ProjectManagementRepository extends JpaRepository<ProjectManage
     @EntityGraph(attributePaths = {"customer", "customer.user", "primaryWarehouse", "backupWarehouse", "linkedContract", "milestones"})
     @Query("select p from ProjectManagementEntity p where p.id = :id and p.customer.id = :customerId")
     Optional<ProjectManagementEntity> findDetailedByIdAndCustomerId(@Param("id") String id, @Param("customerId") String customerId);
+
+    @EntityGraph(attributePaths = {"customer", "customer.user", "primaryWarehouse", "backupWarehouse", "linkedContract"})
+    Optional<ProjectManagementEntity> findByLinkedContract_Id(String contractId);
+
+    @EntityGraph(attributePaths = {"customer", "customer.user", "primaryWarehouse", "backupWarehouse", "linkedContract"})
+    List<ProjectManagementEntity> findByLinkedContract_IdIn(Collection<String> contractIds);
 }

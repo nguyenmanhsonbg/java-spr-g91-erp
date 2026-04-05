@@ -77,16 +77,24 @@ public class ProductController {
     }
 
     private void mergeUploadedImageUrls(ProductCreateRequest request, List<MultipartFile> files) {
+        request.setImageUrls(mergeImageUrls(request.getImageUrls(), files));
+    }
+
+    private void mergeUploadedImageUrls(ProductUpdateRequest request, List<MultipartFile> files) {
+        request.setImageUrls(mergeImageUrls(request.getImageUrls(), files));
+    }
+
+    private List<String> mergeImageUrls(List<String> existingImageUrls, List<MultipartFile> files) {
         if (files == null || files.isEmpty()) {
-            return;
+            return existingImageUrls;
         }
 
         List<String> mergedImageUrls = new ArrayList<>();
-        if (request.getImageUrls() != null) {
-            mergedImageUrls.addAll(request.getImageUrls());
+        if (existingImageUrls != null) {
+            mergedImageUrls.addAll(existingImageUrls);
         }
         mergedImageUrls.addAll(productImageStorageService.store(files));
-        request.setImageUrls(mergedImageUrls);
+        return mergedImageUrls;
     }
 
     @GetMapping("/{id}")
@@ -94,11 +102,25 @@ public class ProductController {
         return ApiResponse.success("Product detail fetched successfully", productService.getProductById(id));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<ProductResponse> updateProduct(
             @PathVariable String id,
             @Valid @RequestBody ProductUpdateRequest request
     ) {
+        return updateProductResponse(id, request);
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ProductResponse> updateProductWithImages(
+            @PathVariable String id,
+            @Valid @ModelAttribute ProductUpdateRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files
+    ) {
+        mergeUploadedImageUrls(request, files);
+        return updateProductResponse(id, request);
+    }
+
+    private ApiResponse<ProductResponse> updateProductResponse(String id, ProductUpdateRequest request) {
         return ApiResponse.success("Product updated successfully", productService.updateProduct(id, request));
     }
 

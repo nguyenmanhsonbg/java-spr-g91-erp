@@ -112,6 +112,7 @@ class ContractControllerWebMvcTest {
                 new ContractResponse(
                         "contract-1",
                         "CT-20260315-0001",
+                        null,
                         "customer-1",
                         "Customer A",
                         null,
@@ -122,6 +123,7 @@ class ContractControllerWebMvcTest {
                         false,
                         "70% on delivery, 30% within 30 days",
                         "Warehouse district 9",
+                        null,
                         null,
                         null,
                         null,

@@ -15,6 +15,8 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
 
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
+    long countBySubmittedAtBetween(LocalDateTime start, LocalDateTime end);
+
     boolean existsByQuotation_Id(String quotationId);
 
     boolean existsByPriceListIdAndStatusIn(String priceListId, Collection<String> statuses);

@@ -32,6 +32,7 @@ import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.product.repository.ProductRepository;
 import com.g90.backend.modules.project.entity.WarehouseEntity;
 import com.g90.backend.modules.project.repository.WarehouseRepository;
+import com.g90.backend.modules.saleorder.service.SaleOrderService;
 import com.g90.backend.security.AuthenticatedUser;
 import com.g90.backend.security.CurrentUserProvider;
 import java.math.BigDecimal;
@@ -72,6 +73,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final AuditLogRepository auditLogRepository;
     private final CurrentUserProvider currentUserProvider;
     private final InventoryMapper inventoryMapper;
+    private final SaleOrderService saleOrderService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -125,6 +127,9 @@ public class InventoryServiceImpl implements InventoryService {
 
         if (quantityBefore.compareTo(quantity) < 0) {
             throw new InsufficientInventoryException();
+        }
+        if (StringUtils.hasText(request.getRelatedOrderId())) {
+            saleOrderService.registerInventoryIssue(request.getRelatedOrderId(), product.getId(), quantity, request.getNote(), currentUser.userId());
         }
 
         WarehouseEntity transactionWarehouse = consumeStocks(lockedStocks, quantity, currentUser.userId());
@@ -264,6 +269,7 @@ public class InventoryServiceImpl implements InventoryService {
                         .build())
                 .filters(InventoryHistoryResponseData.Filters.builder()
                         .productId(query.getProductId())
+                        .relatedOrderId(query.getRelatedOrderId())
                         .transactionType(query.getTransactionType())
                         .fromDate(query.getFromDate())
                         .toDate(query.getToDate())
@@ -279,6 +285,9 @@ public class InventoryServiceImpl implements InventoryService {
     private void validateIssueRequest(InventoryIssueRequest request) {
         validatePositiveQuantity(request.getQuantity(), "quantity");
         validateReasonOrNote(request.getReason(), request.getNote());
+        if (!StringUtils.hasText(request.getRelatedOrderId()) && !StringUtils.hasText(request.getRelatedProjectId())) {
+            throw RequestValidationException.singleError("relatedOrderId", "relatedOrderId or relatedProjectId is required");
+        }
     }
 
     private void validateAdjustmentRequest(InventoryAdjustmentRequest request) {
@@ -313,6 +322,7 @@ public class InventoryServiceImpl implements InventoryService {
         query.setPage(normalizePage(query.getPage()));
         query.setPageSize(normalizeSize(query.getPageSize()));
         query.setProductId(normalizeNullable(query.getProductId()));
+        query.setRelatedOrderId(normalizeNullable(query.getRelatedOrderId()));
         query.setTransactionType(normalizeNullable(query.getTransactionType()));
 
         if (StringUtils.hasText(query.getTransactionType())) {
