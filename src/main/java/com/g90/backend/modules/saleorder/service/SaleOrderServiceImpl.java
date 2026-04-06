@@ -120,9 +120,6 @@ public class SaleOrderServiceImpl implements SaleOrderService {
             ContractStatus.COMPLETED.name()
     );
     private static final Set<String> ISSUE_ALLOWED_STATUSES = Set.of(
-            ContractStatus.SUBMITTED.name(),
-            ContractStatus.PROCESSING.name(),
-            ContractStatus.RESERVED.name(),
             ContractStatus.PICKED.name()
     );
 
@@ -336,24 +333,16 @@ public class SaleOrderServiceImpl implements SaleOrderService {
             throw RequestValidationException.singleError("quantity", "Issued quantity exceeds ordered quantity");
         }
 
-        String previousStatus = saleOrder.getStatus();
         item.setIssuedQuantity(issuedQuantity.add(normalizedQuantity).setScale(2, RoundingMode.HALF_UP));
         item.setReservedQuantity(normalizeQuantity(item.getReservedQuantity()).max(item.getIssuedQuantity()));
         saleOrder.setUpdatedBy(userId);
         saleOrder.setLastTrackingRefreshAt(LocalDateTime.now(APP_ZONE));
 
-        if (ContractStatus.SUBMITTED.name().equalsIgnoreCase(previousStatus)) {
-            saleOrder.setStatus(ContractStatus.PROCESSING.name());
-            saleOrder.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
-            recordStatusHistory(saleOrder, previousStatus, ContractStatus.PROCESSING.name(), "Inventory issue started fulfillment", userId);
-            recordTrackingEvent(saleOrder, ContractTrackingEventType.PROCESSING_STARTED, ContractStatus.PROCESSING.name(), "Order processing started", normalizeNullable(note), null, null, userId);
-        }
-
         contractRepository.save(saleOrder);
         logAudit(
                 "REGISTER_SALE_ORDER_ISSUE",
                 saleOrder.getId(),
-                Map.of("status", previousStatus, "productId", productId.trim(), "issuedQuantity", issuedQuantity),
+                Map.of("status", saleOrder.getStatus(), "productId", productId.trim(), "issuedQuantity", issuedQuantity),
                 Map.of("status", saleOrder.getStatus(), "productId", productId.trim(), "issuedQuantity", item.getIssuedQuantity()),
                 userId
         );
@@ -449,7 +438,7 @@ public class SaleOrderServiceImpl implements SaleOrderService {
             assertInventoryAvailable(saleOrder);
             saleOrder.getItems().forEach(item -> item.setReservedQuantity(normalizeQuantity(item.getQuantity())));
         }
-        if (targetStatus == ContractStatus.PICKED || targetStatus == ContractStatus.IN_TRANSIT || targetStatus == ContractStatus.DELIVERED) {
+        if (targetStatus == ContractStatus.IN_TRANSIT || targetStatus == ContractStatus.DELIVERED) {
             ensureAllIssued(saleOrder);
         }
         if (targetStatus == ContractStatus.DELIVERED) {
@@ -481,9 +470,9 @@ public class SaleOrderServiceImpl implements SaleOrderService {
         boolean allowed = switch (targetStatus) {
             case PROCESSING -> currentStatus == ContractStatus.SUBMITTED;
             case RESERVED -> currentStatus == ContractStatus.SUBMITTED || currentStatus == ContractStatus.PROCESSING;
-            case PICKED -> currentStatus == ContractStatus.PROCESSING || currentStatus == ContractStatus.RESERVED;
+            case PICKED -> currentStatus == ContractStatus.RESERVED;
             case IN_TRANSIT -> currentStatus == ContractStatus.PICKED;
-            case DELIVERED -> currentStatus == ContractStatus.PICKED || currentStatus == ContractStatus.IN_TRANSIT;
+            case DELIVERED -> currentStatus == ContractStatus.IN_TRANSIT;
             case COMPLETED -> currentStatus == ContractStatus.DELIVERED;
             default -> false;
         };

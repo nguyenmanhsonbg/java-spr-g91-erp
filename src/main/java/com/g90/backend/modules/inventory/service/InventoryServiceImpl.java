@@ -118,6 +118,7 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     public InventoryMutationResponse createIssue(InventoryIssueRequest request) {
         AuthenticatedUser currentUser = requireWarehouseOperator();
+        normalizeIssueRequest(request);
         validateIssueRequest(request);
 
         ProductEntity product = loadProduct(request.getProductId());
@@ -129,7 +130,13 @@ public class InventoryServiceImpl implements InventoryService {
             throw new InsufficientInventoryException();
         }
         if (StringUtils.hasText(request.getRelatedOrderId())) {
-            saleOrderService.registerInventoryIssue(request.getRelatedOrderId(), product.getId(), quantity, request.getNote(), currentUser.userId());
+            saleOrderService.registerInventoryIssue(
+                    request.getRelatedOrderId(),
+                    product.getId(),
+                    quantity,
+                    resolveIssueTraceNote(request),
+                    currentUser.userId()
+            );
         }
 
         WarehouseEntity transactionWarehouse = consumeStocks(lockedStocks, quantity, currentUser.userId());
@@ -288,6 +295,9 @@ public class InventoryServiceImpl implements InventoryService {
         if (!StringUtils.hasText(request.getRelatedOrderId()) && !StringUtils.hasText(request.getRelatedProjectId())) {
             throw RequestValidationException.singleError("relatedOrderId", "relatedOrderId or relatedProjectId is required");
         }
+        if (StringUtils.hasText(request.getRelatedOrderId()) && StringUtils.hasText(request.getRelatedProjectId())) {
+            throw RequestValidationException.singleError("relatedOrderId", "Provide either relatedOrderId or relatedProjectId, not both");
+        }
     }
 
     private void validateAdjustmentRequest(InventoryAdjustmentRequest request) {
@@ -335,6 +345,24 @@ public class InventoryServiceImpl implements InventoryService {
         if (query.getFromDate() != null && query.getToDate() != null && query.getFromDate().isAfter(query.getToDate())) {
             throw new InvalidDateRangeException();
         }
+    }
+
+    private void normalizeIssueRequest(InventoryIssueRequest request) {
+        if (request == null) {
+            return;
+        }
+        request.setProductId(normalizeNullable(request.getProductId()));
+        request.setRelatedOrderId(normalizeNullable(request.getRelatedOrderId()));
+        request.setRelatedProjectId(normalizeNullable(request.getRelatedProjectId()));
+        request.setReason(normalizeNullable(request.getReason()));
+        request.setNote(normalizeNullable(request.getNote()));
+    }
+
+    private String resolveIssueTraceNote(InventoryIssueRequest request) {
+        if (StringUtils.hasText(request.getNote())) {
+            return request.getNote();
+        }
+        return request.getReason();
     }
 
     private InventoryTransactionEntity buildTransaction(

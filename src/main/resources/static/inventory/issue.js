@@ -95,6 +95,8 @@ async function submitForm(event) {
 
 function validateForm() {
     const errors = [];
+    const relatedOrderId = form.relatedOrderId.value.trim();
+    const relatedProjectId = form.relatedProjectId.value.trim();
 
     if (!form.productId.value) {
         form.querySelector('[data-error-for="productId"]').textContent = "Product is required";
@@ -107,6 +109,14 @@ function validateForm() {
     if (!form.reason.value.trim() && !form.note.value.trim()) {
         form.querySelector('[data-error-for="reason"]').textContent = "Reason or note is required";
         errors.push("reason: Reason or note is required");
+    }
+    if (!relatedOrderId && !relatedProjectId) {
+        form.querySelector('[data-error-for="relatedOrderId"]').textContent = "Sale order ID or project ID is required";
+        errors.push("relatedOrderId: Sale order ID or project ID is required");
+    }
+    if (relatedOrderId && relatedProjectId) {
+        form.querySelector('[data-error-for="relatedOrderId"]').textContent = "Provide either sale order ID or project ID, not both";
+        errors.push("relatedOrderId: Provide either sale order ID or project ID, not both");
     }
 
     return errors;

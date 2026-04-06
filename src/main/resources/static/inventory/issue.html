@@ -57,7 +57,7 @@
         <div class="card-header">
             <div>
                 <h2 class="section-title">Issue Form</h2>
-                <p class="muted">Quantity must not exceed available stock. Provide a reason or note for traceability.</p>
+                <p class="muted">Quantity must not exceed available stock. Provide either a picked sale order ID or a project ID, plus a reason or note for traceability.</p>
             </div>
         </div>
 
@@ -76,13 +76,13 @@
                     <div class="field-error" data-error-for="quantity"></div>
                 </div>
                 <div class="field">
-                    <label for="relatedOrderId">Related Order ID</label>
-                    <input id="relatedOrderId" name="relatedOrderId" type="text" placeholder="Optional order reference">
+                    <label for="relatedOrderId">Sale Order ID</label>
+                    <input id="relatedOrderId" name="relatedOrderId" type="text" placeholder="Picked sale order reference">
                     <div class="field-error" data-error-for="relatedOrderId"></div>
                 </div>
                 <div class="field">
-                    <label for="relatedProjectId">Related Project ID</label>
-                    <input id="relatedProjectId" name="relatedProjectId" type="text" placeholder="Optional project reference">
+                    <label for="relatedProjectId">Project ID</label>
+                    <input id="relatedProjectId" name="relatedProjectId" type="text" placeholder="Alternative project reference">
                     <div class="field-error" data-error-for="relatedProjectId"></div>
                 </div>
                 <div class="field">

@@ -51,7 +51,10 @@ Transition rules implemented:
 - only submitted/executable contracts are visible as sale orders
 - terminal states `COMPLETED` and `CANCELLED` cannot continue fulfillment
 - `RESERVED` requires inventory availability
-- `PICKED`, `IN_TRANSIT`, and `DELIVERED` require all items fully issued
+- `PICKED` is the warehouse picking step and no longer requires inventory issue first
+- inventory issue is only allowed after the order reaches `PICKED`
+- `IN_TRANSIT` requires all items fully issued
+- `DELIVERED` requires the order to already be `IN_TRANSIT`
 - `COMPLETED` requires all items fully delivered
 - cancel is delegated to existing contract cancellation flow
 
@@ -78,9 +81,11 @@ Related updates:
 ## Inventory Integration
 
 - inventory issue can register against `relatedOrderId`
+- each inventory issue must target either `relatedOrderId` or `relatedProjectId`, not both
 - issue quantity updates `contract_items.issued_quantity`
 - issue quantity cannot exceed ordered quantity
-- first issue on `SUBMITTED` order auto-moves order to `PROCESSING`
+- inventory issue is only accepted while the sale order is `PICKED`
+- dispatch remains an explicit action; inventory issue does not auto-change the sale order status
 - sale order detail includes related inventory issue history
 
 ## Financial Integration
