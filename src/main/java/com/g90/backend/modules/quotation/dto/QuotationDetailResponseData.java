@@ -1,6 +1,7 @@
 package com.g90.backend.modules.quotation.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ public record QuotationDetailResponseData(
         ProjectData project,
         List<QuotationItemResponse> items,
         PricingData pricing,
+        PaymentOptionData paymentOption,
         @JsonProperty("deliveryRequirements") String deliveryRequirements,
         ActionData actions
 ) {

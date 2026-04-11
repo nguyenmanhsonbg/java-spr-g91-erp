@@ -49,6 +49,7 @@ import com.g90.backend.modules.contract.entity.ContractApprovalEntity;
 import com.g90.backend.modules.contract.entity.ContractApprovalStatus;
 import com.g90.backend.modules.contract.entity.ContractApprovalTier;
 import com.g90.backend.modules.contract.entity.ContractApprovalType;
+import com.g90.backend.modules.contract.entity.ContractCancellationReason;
 import com.g90.backend.modules.contract.entity.ContractDocumentEntity;
 import com.g90.backend.modules.contract.entity.ContractDocumentType;
 import com.g90.backend.modules.contract.entity.ContractEntity;
@@ -74,11 +75,20 @@ import com.g90.backend.modules.contract.repository.ContractSpecifications;
 import com.g90.backend.modules.contract.repository.ContractStatusHistoryRepository;
 import com.g90.backend.modules.contract.repository.ContractTrackingEventRepository;
 import com.g90.backend.modules.contract.repository.ContractVersionRepository;
+import com.g90.backend.modules.debt.entity.DebtInvoiceEntity;
+import com.g90.backend.modules.debt.repository.DebtInvoiceRepository;
+import com.g90.backend.modules.debt.entity.PaymentAllocationEntity;
+import com.g90.backend.modules.debt.repository.PaymentAllocationRepository;
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
+import com.g90.backend.modules.payment.entity.InvoiceEntity;
+import com.g90.backend.modules.payment.entity.InvoiceItemEntity;
+import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
+import com.g90.backend.modules.payment.repository.InvoiceRepository;
+import com.g90.backend.modules.payment.repository.PaymentOptionRepository;
 import com.g90.backend.modules.product.dto.PaginationResponse;
 import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.product.entity.ProductStatus;
 import com.g90.backend.modules.product.repository.ProductRepository;
-import com.g90.backend.modules.project.entity.ProjectInvoiceEntity;
 import com.g90.backend.modules.project.repository.ProjectInvoiceRepository;
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import com.g90.backend.modules.quotation.entity.QuotationItemEntity;
@@ -118,8 +128,21 @@ public class ContractServiceImpl implements ContractService {
     private static final BigDecimal CANCELLATION_APPROVAL_THRESHOLD = new BigDecimal("100000000.00");
     private static final BigDecimal MINIMUM_ALLOWED_PRICE_FACTOR = new BigDecimal("0.90");
     private static final BigDecimal TEN_PERCENT = new BigDecimal("10.00");
+    private static final BigDecimal THIRTY_PERCENT = new BigDecimal("30.00");
     private static final String STANDARD_PAYMENT_TERMS = "70% on delivery, 30% within 30 days";
     private static final String PROFITABILITY_TODO_NOTE = "TODO: integrate cost and margin aggregator for full profitability review.";
+    private static final Set<String> CUSTOMER_LOADING_STATUSES = Set.of(
+            ContractStatus.PICKED.name(),
+            ContractStatus.IN_TRANSIT.name()
+    );
+    private static final Set<String> PREPARATION_STARTED_STATUSES = Set.of(
+            ContractStatus.PROCESSING.name(),
+            ContractStatus.RESERVED.name(),
+            ContractStatus.PICKED.name(),
+            ContractStatus.IN_TRANSIT.name(),
+            ContractStatus.DELIVERED.name(),
+            ContractStatus.COMPLETED.name()
+    );
     private static final Set<String> CONTRACT_SORT_FIELDS = Set.of(
             "createdAt",
             "contractNumber",
@@ -146,6 +169,10 @@ public class ContractServiceImpl implements ContractService {
     private final CustomerProfileRepository customerProfileRepository;
     private final ProjectInvoiceRepository projectInvoiceRepository;
     private final AuditLogRepository auditLogRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final DebtInvoiceRepository debtInvoiceRepository;
+    private final PaymentAllocationRepository paymentAllocationRepository;
+    private final PaymentOptionRepository paymentOptionRepository;
     private final ContractPricingGateway contractPricingGateway;
     private final ContractCreditGateway contractCreditGateway;
     private final ContractInventoryGateway contractInventoryGateway;
@@ -169,6 +196,10 @@ public class ContractServiceImpl implements ContractService {
             CustomerProfileRepository customerProfileRepository,
             ProjectInvoiceRepository projectInvoiceRepository,
             AuditLogRepository auditLogRepository,
+            InvoiceRepository invoiceRepository,
+            DebtInvoiceRepository debtInvoiceRepository,
+            PaymentAllocationRepository paymentAllocationRepository,
+            PaymentOptionRepository paymentOptionRepository,
             ContractPricingGateway contractPricingGateway,
             ContractCreditGateway contractCreditGateway,
             ContractInventoryGateway contractInventoryGateway,
@@ -191,6 +222,10 @@ public class ContractServiceImpl implements ContractService {
         this.customerProfileRepository = customerProfileRepository;
         this.projectInvoiceRepository = projectInvoiceRepository;
         this.auditLogRepository = auditLogRepository;
+        this.invoiceRepository = invoiceRepository;
+        this.debtInvoiceRepository = debtInvoiceRepository;
+        this.paymentAllocationRepository = paymentAllocationRepository;
+        this.paymentOptionRepository = paymentOptionRepository;
         this.contractPricingGateway = contractPricingGateway;
         this.contractCreditGateway = contractCreditGateway;
         this.contractInventoryGateway = contractInventoryGateway;
@@ -294,15 +329,18 @@ public class ContractServiceImpl implements ContractService {
                                 quotation.getProject() == null ? null : quotation.getProject().getProjectCode(),
                                 quotation.getProject() == null ? null : quotation.getProject().getName(),
                                 quotation.getDeliveryRequirement(),
-                                quotation.getNote()
+                                quotation.getNote(),
+                                contractMapper.toPaymentOptionData(quotation.getPaymentOption())
                         ),
                 new ContractFormInitResponseData.DefaultsData(
                         resolveCustomerPaymentTerms(customer),
                         customer.getAddress(),
-                        quotation == null ? null : quotation.getDeliveryRequirement()
+                        quotation == null ? null : quotation.getDeliveryRequirement(),
+                        quotation == null ? null : contractMapper.toPaymentOptionData(quotation.getPaymentOption())
                 ),
                 items,
-                warnings
+                warnings,
+                loadAvailablePaymentOptions()
         );
     }
 
@@ -356,6 +394,9 @@ public class ContractServiceImpl implements ContractService {
         createRequest.setCustomerId(quotation.getCustomer().getId());
         createRequest.setQuotationId(quotationId);
         createRequest.setPaymentTerms(request.getPaymentTerms());
+        createRequest.setPaymentOptionCode(StringUtils.hasText(request.getPaymentOptionCode())
+                ? request.getPaymentOptionCode()
+                : quotation.getPaymentOption() == null ? null : quotation.getPaymentOption().getCode());
         createRequest.setDeliveryAddress(request.getDeliveryAddress());
         createRequest.setDeliveryTerms(quotation.getDeliveryRequirement());
         createRequest.setNote(quotation.getNote());
@@ -370,6 +411,7 @@ public class ContractServiceImpl implements ContractService {
                         created.contract().totalAmount(),
                         created.contract().status(),
                         created.contract().paymentTerms(),
+                        created.contract().paymentOption(),
                         created.contract().deliveryAddress(),
                         created.contract().createdAt()
                 ),
@@ -463,6 +505,11 @@ public class ContractServiceImpl implements ContractService {
 
         ContractEntity contract = loadDetailedContract(contractId);
         ensureCancellable(contract);
+        String cancellationReasonCode = request.getCancellationReason().name();
+        String cancellationNote = normalizeNullable(request.getCancellationNote());
+        contract.setCancellationReasonCode(cancellationReasonCode);
+        contract.setCancellationNote(cancellationNote);
+        contract.setUpdatedBy(currentUser.userId());
 
         if (requiresCancellationApproval(contract) && !RoleName.OWNER.name().equalsIgnoreCase(currentUser.role())) {
             String currentStatus = contract.getStatus();
@@ -471,33 +518,25 @@ public class ContractServiceImpl implements ContractService {
                     ContractApprovalType.CANCELLATION,
                     ContractApprovalTier.MANAGER,
                     ContractPendingAction.CANCEL,
-                    request.getCancellationReason().name(),
+                    cancellationReasonCode,
                     currentUser.userId()
             );
             contract.setStatus(currentStatus);
             contractRepository.save(contract);
-            recordTrackingEvent(contract, ContractTrackingEventType.CANCEL_REQUESTED, contract.getStatus(), "Cancellation approval requested", request.getCancellationReason().name(), null, null, currentUser.userId());
-            logAudit("REQUEST_CONTRACT_CANCELLATION", contract.getId(), null, request.getCancellationReason().name(), currentUser.userId());
-            return new ContractApprovalResponseData(contract.getId(), contract.getContractNumber(), contract.getApprovalStatus(), contract.getStatus(), "PENDING_APPROVAL", currentUser.userId(), contract.getApprovalRequestedAt(), request.getCancellationReason().name());
+            recordTrackingEvent(contract, ContractTrackingEventType.CANCEL_REQUESTED, contract.getStatus(), "Cancellation approval requested", cancellationReasonCode, null, null, currentUser.userId());
+            logAudit("REQUEST_CONTRACT_CANCELLATION", contract.getId(), null, cancellationReasonCode, currentUser.userId());
+            return new ContractApprovalResponseData(contract.getId(), contract.getContractNumber(), contract.getApprovalStatus(), contract.getStatus(), "PENDING_APPROVAL", currentUser.userId(), contract.getApprovalRequestedAt(), cancellationReasonCode);
         }
 
         String previousStatus = contract.getStatus();
-        contractInventoryGateway.releaseReservation(contract, request.getCancellationReason().name());
-        contract.setStatus(ContractStatus.CANCELLED.name());
-        contract.setCancelledBy(currentUser.userId());
-        contract.setCancelledAt(LocalDateTime.now(APP_ZONE));
-        contract.setCancellationReasonCode(request.getCancellationReason().name());
-        contract.setCancellationNote(normalizeNullable(request.getCancellationNote()));
-        contract.setPendingAction(null);
         contract.setApprovalStatus(ContractApprovalStatus.NOT_REQUIRED.name());
-        contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
-        ContractEntity saved = contractRepository.save(contract);
+        ContractEntity saved = finalizeCancellation(contract, cancellationReasonCode, cancellationNote, currentUser.userId());
 
-        recordStatusHistory(saved, previousStatus, ContractStatus.CANCELLED.name(), request.getCancellationReason().name(), currentUser.userId());
-        recordTrackingEvent(saved, ContractTrackingEventType.CANCELLED, ContractStatus.CANCELLED.name(), "Contract cancelled", request.getCancellationReason().name(), null, null, currentUser.userId());
-        contractNotificationGateway.notifyCancellation(saved, request.getCancellationReason().name());
+        recordStatusHistory(saved, previousStatus, ContractStatus.CANCELLED.name(), cancellationReasonCode, currentUser.userId());
+        recordTrackingEvent(saved, ContractTrackingEventType.CANCELLED, ContractStatus.CANCELLED.name(), "Contract cancelled", cancellationReasonCode, null, null, currentUser.userId());
+        contractNotificationGateway.notifyCancellation(saved, cancellationReasonCode);
         logAudit("CANCEL_CONTRACT", saved.getId(), previousStatus, saved.getStatus(), currentUser.userId());
-        return new ContractApprovalResponseData(saved.getId(), saved.getContractNumber(), saved.getApprovalStatus(), saved.getStatus(), "CANCELLED", currentUser.userId(), saved.getCancelledAt(), request.getCancellationReason().name());
+        return new ContractApprovalResponseData(saved.getId(), saved.getContractNumber(), saved.getApprovalStatus(), saved.getStatus(), "CANCELLED", currentUser.userId(), saved.getCancelledAt(), cancellationReasonCode);
     }
 
     @Override
@@ -507,8 +546,41 @@ public class ContractServiceImpl implements ContractService {
         ensureInternalRole(currentUser);
 
         ContractEntity contract = loadDetailedContract(contractId);
-        if (!ContractStatus.DRAFT.name().equalsIgnoreCase(contract.getStatus())) {
-            throw new ContractSubmitNotAllowedException("Only draft contract can be submitted");
+        if (ContractStatus.DRAFT.name().equalsIgnoreCase(contract.getStatus())) {
+            validateContractReadyForSubmission(contract);
+            String previousStatus = contract.getStatus();
+            contract.setStatus(ContractStatus.PENDING_CUSTOMER_APPROVAL.name());
+            contract.setPendingAction(null);
+            contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
+            contract.setUpdatedBy(currentUser.userId());
+            ContractEntity saved = contractRepository.save(contract);
+
+            recordStatusHistory(saved, previousStatus, ContractStatus.PENDING_CUSTOMER_APPROVAL.name(), normalizeNullable(request.getSubmissionNote()), currentUser.userId());
+            recordTrackingEvent(
+                    saved,
+                    ContractTrackingEventType.CUSTOMER_APPROVAL_REQUESTED,
+                    ContractStatus.PENDING_CUSTOMER_APPROVAL.name(),
+                    "Customer approval requested",
+                    normalizeNullable(request.getSubmissionNote()),
+                    null,
+                    null,
+                    currentUser.userId()
+            );
+            logAudit("REQUEST_CUSTOMER_APPROVAL", saved.getId(), previousStatus, saved.getStatus(), currentUser.userId());
+            return new ContractApprovalResponseData(
+                    saved.getId(),
+                    saved.getContractNumber(),
+                    saved.getApprovalStatus(),
+                    saved.getStatus(),
+                    ContractStatus.PENDING_CUSTOMER_APPROVAL.name(),
+                    currentUser.userId(),
+                    saved.getLastStatusChangeAt(),
+                    normalizeNullable(request.getSubmissionNote())
+            );
+        }
+
+        if (!ContractStatus.CUSTOMER_APPROVAL.name().equalsIgnoreCase(contract.getStatus())) {
+            throw new ContractSubmitNotAllowedException("Only draft or customer-approved contract can be progressed");
         }
 
         if (request.getScheduledSubmissionAt() != null && request.getScheduledSubmissionAt().isAfter(LocalDateTime.now(APP_ZONE))) {
@@ -523,6 +595,7 @@ public class ContractServiceImpl implements ContractService {
         enforceCreditLimit(contract);
         assertInventoryAvailable(contract);
 
+        String previousStatus = contract.getStatus();
         if (contract.isRequiresApproval()) {
             String approvalReason = defaultIfNull(contract.getTotalAmount()).compareTo(HIGH_VALUE_APPROVAL_THRESHOLD) > 0
                     ? "Contract value exceeds owner approval threshold"
@@ -535,14 +608,13 @@ public class ContractServiceImpl implements ContractService {
                     approvalReason,
                     currentUser.userId()
             );
-            recordStatusHistory(contract, ContractStatus.DRAFT.name(), ContractStatus.PENDING_APPROVAL.name(), approvalReason, currentUser.userId());
+            recordStatusHistory(contract, previousStatus, ContractStatus.PENDING_APPROVAL.name(), approvalReason, currentUser.userId());
             recordTrackingEvent(contract, ContractTrackingEventType.APPROVAL_REQUESTED, ContractStatus.PENDING_APPROVAL.name(), "Approval requested", approvalReason, null, null, currentUser.userId());
             contractNotificationGateway.notifyApprovalRequested(contract, ContractApprovalType.SUBMISSION, approvalReason);
-            logAudit("REQUEST_CONTRACT_APPROVAL", contract.getId(), ContractStatus.DRAFT.name(), ContractStatus.PENDING_APPROVAL.name(), currentUser.userId());
+            logAudit("REQUEST_CONTRACT_APPROVAL", contract.getId(), previousStatus, ContractStatus.PENDING_APPROVAL.name(), currentUser.userId());
             return new ContractApprovalResponseData(contract.getId(), contract.getContractNumber(), contract.getApprovalStatus(), contract.getStatus(), "PENDING_APPROVAL", currentUser.userId(), contract.getApprovalRequestedAt(), approvalReason);
         }
 
-        String previousStatus = contract.getStatus();
         contract.setApprovalStatus(ContractApprovalStatus.NOT_REQUIRED.name());
         prepareSubmittedContract(contract, currentUser.userId());
         ContractEntity saved = contractRepository.save(contract);
@@ -554,6 +626,93 @@ public class ContractServiceImpl implements ContractService {
         contractNotificationGateway.notifyWarehousePreparation(saved, "Contract submitted for preparation");
         logAudit("SUBMIT_CONTRACT", saved.getId(), previousStatus, saved.getStatus(), currentUser.userId());
         return new ContractApprovalResponseData(saved.getId(), saved.getContractNumber(), saved.getApprovalStatus(), saved.getStatus(), "SUBMITTED", currentUser.userId(), saved.getSubmittedAt(), normalizeNullable(request.getSubmissionNote()));
+    }
+
+    @Override
+    @Transactional
+    public ContractApprovalResponseData approveByCustomer(String contractId, ContractApprovalDecisionRequest request) {
+        AuthenticatedUser currentUser = currentUserProvider.getCurrentUser();
+        ensureCustomerRole(currentUser);
+
+        ContractEntity contract = loadAccessibleContract(contractId, currentUser);
+        if (!ContractStatus.PENDING_CUSTOMER_APPROVAL.name().equalsIgnoreCase(contract.getStatus())) {
+            throw new ContractSubmitNotAllowedException("Only contract pending customer approval can be approved by customer");
+        }
+
+        String previousStatus = contract.getStatus();
+        contract.setStatus(ContractStatus.CUSTOMER_APPROVAL.name());
+        contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
+        contract.setUpdatedBy(currentUser.userId());
+        ContractEntity saved = contractRepository.save(contract);
+
+        recordStatusHistory(saved, previousStatus, ContractStatus.CUSTOMER_APPROVAL.name(), normalizeNullable(request.getComment()), currentUser.userId());
+        recordTrackingEvent(
+                saved,
+                ContractTrackingEventType.CUSTOMER_APPROVED,
+                ContractStatus.CUSTOMER_APPROVAL.name(),
+                "Customer approved contract",
+                normalizeNullable(request.getComment()),
+                null,
+                null,
+                currentUser.userId()
+        );
+        contractNotificationGateway.notifyApprovalDecision(saved, "CUSTOMER_APPROVED", "Customer approved contract");
+        logAudit("CUSTOMER_APPROVE_CONTRACT", saved.getId(), previousStatus, saved.getStatus(), currentUser.userId());
+        return new ContractApprovalResponseData(
+                saved.getId(),
+                saved.getContractNumber(),
+                saved.getApprovalStatus(),
+                saved.getStatus(),
+                "CUSTOMER_APPROVED",
+                currentUser.userId(),
+                saved.getLastStatusChangeAt(),
+                normalizeNullable(request.getComment())
+        );
+    }
+
+    @Override
+    @Transactional
+    public ContractApprovalResponseData rejectByCustomer(String contractId, ContractApprovalDecisionRequest request) {
+        AuthenticatedUser currentUser = currentUserProvider.getCurrentUser();
+        ensureCustomerRole(currentUser);
+
+        ContractEntity contract = loadAccessibleContract(contractId, currentUser);
+        if (!ContractStatus.PENDING_CUSTOMER_APPROVAL.name().equalsIgnoreCase(contract.getStatus())) {
+            throw new ContractSubmitNotAllowedException("Only contract pending customer approval can be rejected by customer");
+        }
+
+        return moveBackToDraft(
+                contract,
+                "CUSTOMER_REJECTED",
+                ContractTrackingEventType.CUSTOMER_REJECTED,
+                "Customer rejected contract",
+                normalizeNullable(request.getComment()),
+                currentUser.userId(),
+                "CUSTOMER_REJECT_CONTRACT"
+        );
+    }
+
+    @Override
+    @Transactional
+    public ContractApprovalResponseData rejectCustomerApproval(String contractId, ContractApprovalDecisionRequest request) {
+        AuthenticatedUser currentUser = currentUserProvider.getCurrentUser();
+        ensureInternalRole(currentUser);
+
+        ContractEntity contract = loadDetailedContract(contractId);
+        if (!ContractStatus.CUSTOMER_APPROVAL.name().equalsIgnoreCase(contract.getStatus())) {
+            throw new ContractSubmitNotAllowedException("Only customer-approved contract can be rejected by accountant");
+        }
+
+        contract.setUpdatedBy(currentUser.userId());
+        return moveBackToDraft(
+                contract,
+                "ACCOUNTANT_REJECTED",
+                ContractTrackingEventType.ACCOUNTANT_REJECTED,
+                "Accountant rejected contract",
+                normalizeNullable(request.getComment()),
+                currentUser.userId(),
+                "ACCOUNTANT_REJECT_CONTRACT"
+        );
     }
 
     @Override
@@ -769,6 +928,11 @@ public class ContractServiceImpl implements ContractService {
     private PreparedContract prepareContract(ContractPreviewRequest request, boolean enforceCreditLimit) {
         CustomerProfileEntity customer = loadCustomer(request.getCustomerId());
         QuotationEntity quotation = resolveQuotation(request.getQuotationId(), customer.getId());
+        PaymentOptionEntity paymentOption = resolvePaymentOption(
+                StringUtils.hasText(request.getPaymentOptionCode())
+                        ? request.getPaymentOptionCode()
+                        : quotation == null || quotation.getPaymentOption() == null ? null : quotation.getPaymentOption().getCode()
+        );
         List<ContractItemRequest> itemRequests = resolveRequestedItems(request.getItems(), quotation);
         validateItemRequests(itemRequests);
 
@@ -858,6 +1022,7 @@ public class ContractServiceImpl implements ContractService {
                 StringUtils.hasText(request.getPaymentTerms())
                         ? normalizeNullable(request.getPaymentTerms())
                         : resolveCustomerPaymentTerms(customer),
+                paymentOption,
                 normalizeNullable(request.getDeliveryAddress()),
                 normalizeNullable(request.getDeliveryTerms()),
                 normalizeNullable(request.getNote()),
@@ -876,6 +1041,7 @@ public class ContractServiceImpl implements ContractService {
                 prepared.items().stream()
                         .map(item -> new ContractItemResponse(null, item.product().getId(), item.product().getProductCode(), item.product().getProductName(), item.product().getType(), item.product().getSize(), item.product().getThickness(), item.product().getUnit(), item.quantity(), item.baseUnitPrice(), item.finalUnitPrice(), item.discountAmount(), item.totalPrice(), item.priceOverrideReason()))
                         .toList(),
+                contractMapper.toPaymentOptionData(prepared.paymentOption()),
                 prepared.totalAmount(),
                 prepared.requiresApproval(),
                 prepared.approvalTier(),
@@ -946,6 +1112,7 @@ public class ContractServiceImpl implements ContractService {
         contract.setQuotation(prepared.quotation());
         contract.setPriceListId(prepared.priceListId());
         contract.setPaymentTerms(prepared.paymentTerms());
+        contract.setPaymentOption(prepared.paymentOption());
         contract.setDeliveryAddress(prepared.deliveryAddress());
         contract.setDeliveryTerms(prepared.deliveryTerms());
         contract.setExpectedDeliveryDate(prepared.expectedDeliveryDate());
@@ -990,6 +1157,9 @@ public class ContractServiceImpl implements ContractService {
                 ? request.getQuotationId()
                 : contract.getQuotation() == null ? null : contract.getQuotation().getId());
         normalized.setPaymentTerms(request.getPaymentTerms());
+        normalized.setPaymentOptionCode(StringUtils.hasText(request.getPaymentOptionCode())
+                ? request.getPaymentOptionCode()
+                : contract.getPaymentOption() == null ? null : contract.getPaymentOption().getCode());
         normalized.setDeliveryAddress(request.getDeliveryAddress());
         normalized.setDeliveryTerms(request.getDeliveryTerms());
         normalized.setExpectedDeliveryDate(request.getExpectedDeliveryDate());
@@ -1121,6 +1291,12 @@ public class ContractServiceImpl implements ContractService {
         }
     }
 
+    private void ensureCustomerRole(AuthenticatedUser currentUser) {
+        if (!RoleName.CUSTOMER.name().equalsIgnoreCase(currentUser.role())) {
+            throw new ForbiddenOperationException("You do not have permission to perform this action");
+        }
+    }
+
     private Optional<ContractApprovalEntity> findRelevantApproval(ContractEntity contract) {
         if (contract.getApprovals() == null || contract.getApprovals().isEmpty()) {
             return Optional.empty();
@@ -1228,10 +1404,12 @@ public class ContractServiceImpl implements ContractService {
 
         if (ContractApprovalStatus.APPROVED == decision) {
             if (ContractPendingAction.CANCEL.name().equalsIgnoreCase(resolvePendingAction(contract, approval))) {
-                contractInventoryGateway.releaseReservation(contract, "Cancellation approved");
-                contract.setStatus(ContractStatus.CANCELLED.name());
-                contract.setCancelledBy(currentUser.userId());
-                contract.setCancelledAt(LocalDateTime.now(APP_ZONE));
+                finalizeCancellation(
+                        contract,
+                        resolveCancellationReasonCode(contract, approval),
+                        contract.getCancellationNote(),
+                        currentUser.userId()
+                );
                 recordTrackingEvent(contract, ContractTrackingEventType.CANCELLED, ContractStatus.CANCELLED.name(), "Cancellation approved", normalizeNullable(request.getComment()), null, null, currentUser.userId());
                 contractNotificationGateway.notifyCancellation(contract, "Cancellation approved");
             } else {
@@ -1271,6 +1449,41 @@ public class ContractServiceImpl implements ContractService {
         return ContractApprovalType.CANCELLATION.name().equalsIgnoreCase(approval.getApprovalType())
                 ? ContractPendingAction.CANCEL.name()
                 : ContractPendingAction.SUBMIT.name();
+    }
+
+    private ContractApprovalResponseData moveBackToDraft(
+            ContractEntity contract,
+            String decision,
+            ContractTrackingEventType trackingEventType,
+            String trackingTitle,
+            String comment,
+            String actorUserId,
+            String auditAction
+    ) {
+        String previousStatus = contract.getStatus();
+        contract.setStatus(ContractStatus.DRAFT.name());
+        contract.setApprovalStatus(ContractApprovalStatus.NOT_REQUIRED.name());
+        contract.setPendingAction(null);
+        contract.setApprovalRequestedAt(null);
+        contract.setApprovalDueAt(null);
+        contract.setUpdatedBy(actorUserId);
+        contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
+        ContractEntity saved = contractRepository.save(contract);
+
+        recordStatusHistory(saved, previousStatus, ContractStatus.DRAFT.name(), comment, actorUserId);
+        recordTrackingEvent(saved, trackingEventType, ContractStatus.DRAFT.name(), trackingTitle, comment, null, null, actorUserId);
+        contractNotificationGateway.notifyApprovalDecision(saved, decision, trackingTitle);
+        logAudit(auditAction, saved.getId(), previousStatus, saved.getStatus(), actorUserId);
+        return new ContractApprovalResponseData(
+                saved.getId(),
+                saved.getContractNumber(),
+                saved.getApprovalStatus(),
+                saved.getStatus(),
+                decision,
+                actorUserId,
+                saved.getLastStatusChangeAt(),
+                comment
+        );
     }
 
     private void validateContractReadyForSubmission(ContractEntity contract) {
@@ -1321,16 +1534,227 @@ public class ContractServiceImpl implements ContractService {
                 || ContractStatus.DELIVERED.name().equalsIgnoreCase(contract.getStatus())) {
             throw new ContractCancelNotAllowedException("Completed, delivered, or cancelled contract cannot be cancelled");
         }
-        List<ProjectInvoiceEntity> invoices = projectInvoiceRepository.findByContractId(contract.getId());
-        boolean hasActiveInvoice = invoices.stream()
-                .map(ProjectInvoiceEntity::getStatus)
-                .anyMatch(status -> !StringUtils.hasText(status) || (!"CANCELLED".equalsIgnoreCase(status) && !"VOID".equalsIgnoreCase(status)));
-        if (hasActiveInvoice) {
-            throw new ContractCancelNotAllowedException("Contract with invoicing activity cannot be cancelled");
-        }
         if (ContractApprovalStatus.PENDING.name().equalsIgnoreCase(contract.getApprovalStatus())) {
             throw new ContractCancelNotAllowedException("Contract already has a pending approval");
         }
+    }
+
+    private ContractEntity finalizeCancellation(
+            ContractEntity contract,
+            String cancellationReasonCode,
+            String cancellationNote,
+            String actingUserId
+    ) {
+        contractInventoryGateway.releaseReservation(contract, cancellationReasonCode);
+        applyCancellationDebtSettlement(contract, cancellationReasonCode, actingUserId);
+        contract.setStatus(ContractStatus.CANCELLED.name());
+        contract.setCancelledBy(actingUserId);
+        contract.setCancelledAt(LocalDateTime.now(APP_ZONE));
+        contract.setCancellationReasonCode(cancellationReasonCode);
+        contract.setCancellationNote(cancellationNote);
+        contract.setPendingAction(null);
+        contract.setLastStatusChangeAt(LocalDateTime.now(APP_ZONE));
+        contract.setUpdatedBy(actingUserId);
+        return contractRepository.save(contract);
+    }
+
+    private void applyCancellationDebtSettlement(ContractEntity contract, String cancellationReasonCode, String actingUserId) {
+        CancellationDebtRule rule = determineCancellationDebtRule(contract, cancellationReasonCode);
+        List<InvoiceEntity> contractInvoices = invoiceRepository.findByContractIdWithCustomerAndContract(contract.getId());
+        List<String> invoiceIds = contractInvoices.stream().map(InvoiceEntity::getId).toList();
+        List<PaymentAllocationEntity> allocations = invoiceIds.isEmpty()
+                ? List.of()
+                : paymentAllocationRepository.findDetailedByInvoiceIds(invoiceIds);
+
+        if (rule.receivableAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            cancelContractInvoices(contractInvoices, actingUserId, rule.note());
+            return;
+        }
+
+        InvoiceEntity settlementInvoice = resolveSettlementInvoice(contract, contractInvoices, actingUserId, rule.note());
+        configureSettlementInvoice(settlementInvoice, contract, rule, actingUserId);
+        InvoiceEntity savedSettlementInvoice = invoiceRepository.save(settlementInvoice);
+
+        if (!allocations.isEmpty()) {
+            DebtInvoiceEntity settlementDebtInvoice = debtInvoiceRepository.getReferenceById(savedSettlementInvoice.getId());
+            for (PaymentAllocationEntity allocation : allocations) {
+                allocation.setInvoice(settlementDebtInvoice);
+            }
+            paymentAllocationRepository.saveAll(allocations);
+        }
+
+        cancelNonSettlementInvoices(contractInvoices, savedSettlementInvoice.getId(), actingUserId, rule.note());
+    }
+
+    private void cancelContractInvoices(List<InvoiceEntity> contractInvoices, String actingUserId, String cancellationReason) {
+        if (contractInvoices.isEmpty()) {
+            return;
+        }
+        LocalDateTime cancelledAt = LocalDateTime.now(APP_ZONE);
+        for (InvoiceEntity invoice : contractInvoices) {
+            invoice.setStatus("CANCELLED");
+            invoice.setCancellationReason(cancellationReason);
+            invoice.setCancelledBy(actingUserId);
+            invoice.setCancelledAt(cancelledAt);
+            invoice.setUpdatedBy(actingUserId);
+        }
+        invoiceRepository.saveAll(contractInvoices);
+    }
+
+    private void cancelNonSettlementInvoices(
+            List<InvoiceEntity> contractInvoices,
+            String settlementInvoiceId,
+            String actingUserId,
+            String cancellationReason
+    ) {
+        if (contractInvoices.isEmpty()) {
+            return;
+        }
+        List<InvoiceEntity> staleInvoices = contractInvoices.stream()
+                .filter(invoice -> !invoice.getId().equals(settlementInvoiceId))
+                .toList();
+        cancelContractInvoices(staleInvoices, actingUserId, cancellationReason);
+    }
+
+    private InvoiceEntity resolveSettlementInvoice(
+            ContractEntity contract,
+            List<InvoiceEntity> contractInvoices,
+            String actingUserId,
+            String note
+    ) {
+        Optional<InvoiceEntity> existing = contractInvoices.stream()
+                .filter(invoice -> !"CANCELLED".equalsIgnoreCase(invoice.getStatus()) && !"VOID".equalsIgnoreCase(invoice.getStatus()))
+                .findFirst();
+        if (existing.isPresent()) {
+            return invoiceRepository.findDetailedById(existing.get().getId()).orElse(existing.get());
+        }
+
+        InvoiceEntity invoice = new InvoiceEntity();
+        invoice.setInvoiceNumber(buildCancellationInvoiceNumber(contract));
+        invoice.setContract(contract);
+        invoice.setCustomer(contract.getCustomer());
+        invoice.setSourceType("CONTRACT_CANCELLATION");
+        invoice.setCustomerName(contract.getCustomer() == null ? null : normalizeNullable(contract.getCustomer().getCompanyName()));
+        invoice.setCustomerTaxCode(contract.getCustomer() == null ? null : normalizeNullable(contract.getCustomer().getTaxCode()));
+        invoice.setBillingAddress(contract.getCustomer() == null ? null : normalizeNullable(contract.getCustomer().getAddress()));
+        invoice.setIssueDate(LocalDate.now(APP_ZONE));
+        invoice.setDueDate(LocalDate.now(APP_ZONE).plusDays(7));
+        invoice.setPaymentTerms("Cancellation settlement");
+        invoice.setCreatedBy(actingUserId);
+        invoice.setUpdatedBy(actingUserId);
+        invoice.setNote(note);
+        return invoice;
+    }
+
+    private void configureSettlementInvoice(
+            InvoiceEntity invoice,
+            ContractEntity contract,
+            CancellationDebtRule rule,
+            String actingUserId
+    ) {
+        invoice.setContract(contract);
+        invoice.setCustomer(contract.getCustomer());
+        invoice.setSourceType("CONTRACT_CANCELLATION");
+        invoice.setCustomerName(contract.getCustomer() == null ? null : normalizeNullable(contract.getCustomer().getCompanyName()));
+        invoice.setCustomerTaxCode(contract.getCustomer() == null ? null : normalizeNullable(contract.getCustomer().getTaxCode()));
+        invoice.setBillingAddress(contract.getCustomer() == null ? null : normalizeNullable(contract.getCustomer().getAddress()));
+        if (invoice.getIssueDate() == null) {
+            invoice.setIssueDate(LocalDate.now(APP_ZONE));
+        }
+        if (invoice.getDueDate() == null || invoice.getDueDate().isBefore(invoice.getIssueDate())) {
+            invoice.setDueDate(invoice.getIssueDate().plusDays(7));
+        }
+        invoice.setPaymentTerms("Cancellation settlement");
+        invoice.setAdjustmentAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        invoice.setTotalAmount(rule.receivableAmount());
+        invoice.setVatRate(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        invoice.setVatAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        invoice.setStatus("ISSUED");
+        invoice.setCancellationReason(null);
+        invoice.setCancelledBy(null);
+        invoice.setCancelledAt(null);
+        invoice.setUpdatedBy(actingUserId);
+        invoice.setNote(rule.note());
+        replaceSettlementInvoiceItems(invoice, rule);
+    }
+
+    private void replaceSettlementInvoiceItems(InvoiceEntity invoice, CancellationDebtRule rule) {
+        invoice.getItems().clear();
+        InvoiceItemEntity item = new InvoiceItemEntity();
+        item.setInvoice(invoice);
+        item.setDescription(rule.description());
+        item.setUnit("CASE");
+        item.setQuantity(BigDecimal.ONE.setScale(2, RoundingMode.HALF_UP));
+        item.setUnitPrice(rule.receivableAmount());
+        item.setTotalPrice(rule.receivableAmount());
+        invoice.getItems().add(item);
+    }
+
+    private CancellationDebtRule determineCancellationDebtRule(ContractEntity contract, String cancellationReasonCode) {
+        if (!isCustomerCancellation(cancellationReasonCode)) {
+            return new CancellationDebtRule(
+                    BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                    "Company-initiated cancellation clears receivable exposure; refund and compensation are handled outside receivable debt.",
+                    "Contract cancellation settlement cleared"
+            );
+        }
+
+        String normalizedStatus = normalizeUpper(contract.getStatus());
+        if (CUSTOMER_LOADING_STATUSES.contains(normalizedStatus)) {
+            BigDecimal depositHoldback = resolveCancellationDepositHoldback(contract);
+            return new CancellationDebtRule(
+                    depositHoldback,
+                    "Customer cancellation after goods were loaded keeps the contract deposit; any two-way transport charge must be added manually.",
+                    "Customer cancellation charge after loading"
+            );
+        }
+
+        LocalDateTime referenceTime = contract.getSubmittedAt() != null ? contract.getSubmittedAt() : contract.getCreatedAt();
+        boolean withinTwentyFourHours = referenceTime != null
+                && !referenceTime.plusHours(24).isBefore(LocalDateTime.now(APP_ZONE))
+                && !PREPARATION_STARTED_STATUSES.contains(normalizedStatus);
+        if (withinTwentyFourHours) {
+            return new CancellationDebtRule(
+                    BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                    "Customer cancellation within 24 hours before warehouse confirmation returns the deposit in full, so no receivable remains.",
+                    "Customer cancellation within 24 hours"
+            );
+        }
+
+        BigDecimal chargeAmount = defaultIfNull(contract.getTotalAmount())
+                .multiply(TEN_PERCENT)
+                .divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        return new CancellationDebtRule(
+                chargeAmount,
+                "Customer cancellation after 24 hours keeps 10% of the contract value as a cancellation receivable.",
+                "Customer cancellation charge 10% of contract value"
+        );
+    }
+
+    private BigDecimal resolveCancellationDepositHoldback(ContractEntity contract) {
+        BigDecimal depositAmount = defaultIfNull(contract.getDepositAmount());
+        if (depositAmount.compareTo(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)) > 0) {
+            return depositAmount;
+        }
+        return defaultIfNull(contract.getTotalAmount())
+                .multiply(THIRTY_PERCENT)
+                .divide(HUNDRED, 2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isCustomerCancellation(String cancellationReasonCode) {
+        return ContractCancellationReason.CUSTOMER_REQUEST.name().equalsIgnoreCase(normalizeUpper(cancellationReasonCode));
+    }
+
+    private String resolveCancellationReasonCode(ContractEntity contract, ContractApprovalEntity approval) {
+        if (StringUtils.hasText(contract.getCancellationReasonCode())) {
+            return contract.getCancellationReasonCode().trim();
+        }
+        return approval == null ? ContractCancellationReason.OTHER.name() : normalizeUpper(approval.getComment());
+    }
+
+    private String buildCancellationInvoiceNumber(ContractEntity contract) {
+        String compactId = contract.getId() == null ? "UNKNOWN" : contract.getId().replace("-", "").toUpperCase();
+        return "INV-CXL-" + compactId.substring(0, Math.min(8, compactId.length()));
     }
 
     private boolean requiresCancellationApproval(ContractEntity contract) {
@@ -1562,6 +1986,24 @@ public class ContractServiceImpl implements ContractService {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
+    private String normalizeUpper(String value) {
+        return StringUtils.hasText(value) ? value.trim().toUpperCase() : "";
+    }
+
+    private List<PaymentOptionData> loadAvailablePaymentOptions() {
+        return paymentOptionRepository.findByActiveTrueOrderByDisplayOrderAscCodeAsc().stream()
+                .map(contractMapper::toPaymentOptionData)
+                .toList();
+    }
+
+    private PaymentOptionEntity resolvePaymentOption(String paymentOptionCode) {
+        if (!StringUtils.hasText(paymentOptionCode)) {
+            return null;
+        }
+        return paymentOptionRepository.findByCodeIgnoreCaseAndActiveTrue(paymentOptionCode.trim())
+                .orElseThrow(() -> RequestValidationException.singleError("paymentOptionCode", "Payment option is invalid or inactive"));
+    }
+
     private Map<String, Object> snapshotPayload(ContractEntity contract) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("contractNumber", contract.getContractNumber());
@@ -1570,6 +2012,7 @@ public class ContractServiceImpl implements ContractService {
         payload.put("approvalStatus", contract.getApprovalStatus());
         payload.put("totalAmount", contract.getTotalAmount());
         payload.put("paymentTerms", contract.getPaymentTerms());
+        payload.put("paymentOptionCode", contract.getPaymentOption() == null ? null : contract.getPaymentOption().getCode());
         payload.put("deliveryAddress", contract.getDeliveryAddress());
         payload.put("items", contract.getItems().stream()
                 .map(item -> Map.of(
@@ -1630,6 +2073,7 @@ public class ContractServiceImpl implements ContractService {
             BigDecimal depositAmount,
             List<String> warnings,
             String paymentTerms,
+            PaymentOptionEntity paymentOption,
             String deliveryAddress,
             String deliveryTerms,
             String note,
@@ -1647,6 +2091,13 @@ public class ContractServiceImpl implements ContractService {
             BigDecimal discountAmount,
             BigDecimal totalPrice,
             String priceOverrideReason
+    ) {
+    }
+
+    private record CancellationDebtRule(
+            BigDecimal receivableAmount,
+            String note,
+            String description
     ) {
     }
 }

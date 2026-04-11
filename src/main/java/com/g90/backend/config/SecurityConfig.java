@@ -39,6 +39,7 @@ public class SecurityConfig {
             "/api/auth/login",
             "/api/auth/logout",
             "/api/auth/forgot-password",
+            "/api/auth/reset-password/validate",
             "/api/auth/reset-password"
     };
 
@@ -91,6 +92,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/contracts/*/approval-review")
                         .hasRole("OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/contracts", "/api/contracts/*", "/api/contracts/*/tracking", "/api/contracts/*/documents")
+                        .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/contract-events/contracts")
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.POST, "/api/contracts/*/documents/*/export", "/api/contracts/*/documents/*/email")
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")

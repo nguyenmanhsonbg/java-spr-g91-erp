@@ -3,6 +3,10 @@ package com.g90.backend.modules.contract.entity;
 public enum ContractTrackingEventType {
     DRAFT_CREATED,
     UPDATED,
+    CUSTOMER_APPROVAL_REQUESTED,
+    CUSTOMER_APPROVED,
+    CUSTOMER_REJECTED,
+    ACCOUNTANT_REJECTED,
     APPROVAL_REQUESTED,
     APPROVED,
     REJECTED,

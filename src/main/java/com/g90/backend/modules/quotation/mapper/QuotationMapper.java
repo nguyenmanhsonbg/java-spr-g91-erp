@@ -1,5 +1,7 @@
 package com.g90.backend.modules.quotation.mapper;
 
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
+import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
 import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.quotation.dto.QuotationItemResponse;
 import com.g90.backend.modules.quotation.dto.QuotationSaveResponseData;
@@ -64,7 +66,8 @@ public class QuotationMapper {
                 toItemResponses(entity.getItems()),
                 new QuotationSaveResponseData.MetadataData(
                         entity.getDeliveryRequirement(),
-                        entity.getPromotionCode()
+                        entity.getPromotionCode(),
+                        toPaymentOptionData(entity.getPaymentOption())
                 )
         );
     }
@@ -78,6 +81,7 @@ public class QuotationMapper {
                         entity.getProject() == null ? null : entity.getProject().getId(),
                         entity.getTotalAmount(),
                         entity.getStatus(),
+                        toPaymentOptionData(entity.getPaymentOption()),
                         entity.getValidUntil(),
                         entity.getCreatedAt()
                 ),
@@ -86,5 +90,12 @@ public class QuotationMapper {
                         nextAction
                 )
         );
+    }
+
+    public PaymentOptionData toPaymentOptionData(PaymentOptionEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return new PaymentOptionData(entity.getCode(), entity.getName(), entity.getDescription());
     }
 }

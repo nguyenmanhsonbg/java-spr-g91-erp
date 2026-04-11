@@ -19,6 +19,9 @@ import com.g90.backend.modules.account.repository.AuditLogRepository;
 import com.g90.backend.modules.account.repository.UserAccountRepository;
 import com.g90.backend.modules.contract.repository.ContractRepository;
 import com.g90.backend.modules.customer.entity.CustomerPriceGroup;
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
+import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
+import com.g90.backend.modules.payment.repository.PaymentOptionRepository;
 import com.g90.backend.modules.pricing.entity.PriceListEntity;
 import com.g90.backend.modules.pricing.entity.PriceListItemEntity;
 import com.g90.backend.modules.pricing.repository.PriceListRepository;
@@ -116,6 +119,7 @@ public class QuotationServiceImpl implements QuotationService {
     private final UserAccountRepository userAccountRepository;
     private final AuditLogRepository auditLogRepository;
     private final ContractRepository contractRepository;
+    private final PaymentOptionRepository paymentOptionRepository;
     private final QuotationMapper quotationMapper;
     private final CurrentUserProvider currentUserProvider;
     private final ObjectMapper objectMapper;
@@ -185,7 +189,8 @@ public class QuotationServiceImpl implements QuotationService {
                 ),
                 productData,
                 projects,
-                promotions
+                promotions,
+                loadAvailablePaymentOptions()
         );
     }
 
@@ -279,6 +284,7 @@ public class QuotationServiceImpl implements QuotationService {
         submitRequest.setProjectId(request.getProjectId());
         submitRequest.setDeliveryRequirements(request.getDeliveryRequirements());
         submitRequest.setPromotionCode(request.getPromotionCode());
+        submitRequest.setPaymentOptionCode(request.getPaymentOptionCode());
         submitRequest.setNote(request.getNote());
         submitRequest.setItems(request.getItems());
         return createQuotation(submitRequest);
@@ -311,7 +317,8 @@ public class QuotationServiceImpl implements QuotationService {
                                 : new QuotationPreviewByIdResponseData.PromotionData(
                                         quotation.getPromotionCode(),
                                         promotion == null ? null : promotion.getName()
-                                )
+                                ),
+                        quotationMapper.toPaymentOptionData(quotation.getPaymentOption())
                 ),
                 quotationMapper.toItemResponses(quotation.getItems()),
                 new QuotationPreviewResponseData.SummaryData(
@@ -515,6 +522,7 @@ public class QuotationServiceImpl implements QuotationService {
                         summary.totalAmount(),
                         quotation.getPromotionCode()
                 ),
+                quotationMapper.toPaymentOptionData(quotation.getPaymentOption()),
                 quotation.getDeliveryRequirement(),
                 new QuotationDetailResponseData.ActionData(customerCanEdit, accountantCanCreateContract)
         );
@@ -630,6 +638,7 @@ public class QuotationServiceImpl implements QuotationService {
         if (enforceMinimumAmount && totalAmount.compareTo(MIN_TOTAL_AMOUNT) < 0) {
             throw new QuotationAmountTooLowException();
         }
+        PaymentOptionEntity paymentOption = resolvePaymentOption(request.getPaymentOptionCode());
 
         return new PreparedQuotation(
                 resolvedPricing.priceListId(),
@@ -642,7 +651,8 @@ public class QuotationServiceImpl implements QuotationService {
                 itemResponses,
                 normalizeNullable(request.getNote()),
                 normalizeNullable(request.getDeliveryRequirements()),
-                promotion
+                promotion,
+                paymentOption
         );
     }
 
@@ -855,6 +865,7 @@ public class QuotationServiceImpl implements QuotationService {
         quotation.setNote(preparedQuotation.note());
         quotation.setDeliveryRequirement(preparedQuotation.deliveryRequirements());
         quotation.setPromotionCode(preparedQuotation.promotion() == null ? null : preparedQuotation.promotion().code());
+        quotation.setPaymentOption(preparedQuotation.paymentOption());
         quotation.setSubmittedAt(submittedAt);
 
         quotation.getItems().clear();
@@ -1060,6 +1071,20 @@ public class QuotationServiceImpl implements QuotationService {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
+    private List<PaymentOptionData> loadAvailablePaymentOptions() {
+        return paymentOptionRepository.findByActiveTrueOrderByDisplayOrderAscCodeAsc().stream()
+                .map(quotationMapper::toPaymentOptionData)
+                .toList();
+    }
+
+    private PaymentOptionEntity resolvePaymentOption(String paymentOptionCode) {
+        if (!StringUtils.hasText(paymentOptionCode)) {
+            return null;
+        }
+        return paymentOptionRepository.findByCodeIgnoreCaseAndActiveTrue(paymentOptionCode.trim())
+                .orElseThrow(() -> RequestValidationException.singleError("paymentOptionCode", "Payment option is invalid or inactive"));
+    }
+
     private record PreparedQuotation(
             String priceListId,
             ProjectEntity project,
@@ -1071,7 +1096,8 @@ public class QuotationServiceImpl implements QuotationService {
             List<QuotationItemResponse> itemResponses,
             String note,
             String deliveryRequirements,
-            PromotionOutcome promotion
+            PromotionOutcome promotion,
+            PaymentOptionEntity paymentOption
     ) {
     }
 

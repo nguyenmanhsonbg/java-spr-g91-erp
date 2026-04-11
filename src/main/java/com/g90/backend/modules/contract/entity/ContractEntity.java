@@ -1,5 +1,6 @@
 package com.g90.backend.modules.contract.entity;
 
+import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
 import com.g90.backend.modules.quotation.entity.QuotationEntity;
 import com.g90.backend.modules.user.entity.CustomerProfileEntity;
 import jakarta.persistence.CascadeType;
@@ -62,6 +63,10 @@ public class ContractEntity {
 
     @Column(name = "payment_terms", length = 255)
     private String paymentTerms;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_option_code")
+    private PaymentOptionEntity paymentOption;
 
     @Column(name = "delivery_address", length = 500)
     private String deliveryAddress;

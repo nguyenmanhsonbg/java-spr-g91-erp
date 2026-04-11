@@ -1,5 +1,6 @@
 package com.g90.backend.modules.contract.dto;
 
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -16,6 +17,7 @@ public record ContractFromQuotationResponseData(
             BigDecimal totalAmount,
             String status,
             String paymentTerms,
+            PaymentOptionData paymentOption,
             String deliveryAddress,
             LocalDateTime createdAt
     ) {

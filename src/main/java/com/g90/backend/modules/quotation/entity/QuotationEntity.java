@@ -1,5 +1,6 @@
 package com.g90.backend.modules.quotation.entity;
 
+import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
 import com.g90.backend.modules.user.entity.CustomerProfileEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -66,6 +67,10 @@ public class QuotationEntity {
 
     @Column(name = "promotion_code", length = 50)
     private String promotionCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_option_code")
+    private PaymentOptionEntity paymentOption;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

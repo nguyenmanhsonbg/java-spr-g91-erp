@@ -20,11 +20,11 @@ public interface QuotationRepository extends JpaRepository<QuotationEntity, Stri
 
     boolean existsByPromotionCodeIgnoreCaseAndStatusIn(String promotionCode, Collection<String> statuses);
 
-    @EntityGraph(attributePaths = {"customer", "customer.user", "project", "items", "items.product"})
+    @EntityGraph(attributePaths = {"customer", "customer.user", "project", "paymentOption", "items", "items.product"})
     @Query("select q from QuotationEntity q where q.id = :id")
     Optional<QuotationEntity> findDetailedById(@Param("id") String id);
 
-    @EntityGraph(attributePaths = {"customer", "customer.user", "project", "items", "items.product"})
+    @EntityGraph(attributePaths = {"customer", "customer.user", "project", "paymentOption", "items", "items.product"})
     @Query("select q from QuotationEntity q where q.id = :id and q.customer.id = :customerId")
     Optional<QuotationEntity> findDetailedByIdAndCustomer_Id(@Param("id") String id, @Param("customerId") String customerId);
 }

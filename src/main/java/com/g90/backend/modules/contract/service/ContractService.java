@@ -44,6 +44,12 @@ public interface ContractService {
 
     ContractApprovalResponseData submitContract(String contractId, ContractSubmitRequest request);
 
+    ContractApprovalResponseData approveByCustomer(String contractId, ContractApprovalDecisionRequest request);
+
+    ContractApprovalResponseData rejectByCustomer(String contractId, ContractApprovalDecisionRequest request);
+
+    ContractApprovalResponseData rejectCustomerApproval(String contractId, ContractApprovalDecisionRequest request);
+
     ContractTrackingResponseData getTracking(String contractId);
 
     ContractDocumentListResponseData getDocuments(String contractId);

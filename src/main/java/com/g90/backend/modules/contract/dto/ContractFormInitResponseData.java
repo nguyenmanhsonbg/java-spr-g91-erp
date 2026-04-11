@@ -1,5 +1,6 @@
 package com.g90.backend.modules.contract.dto;
 
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -9,7 +10,8 @@ public record ContractFormInitResponseData(
         QuotationData quotation,
         DefaultsData defaults,
         List<ItemData> items,
-        List<String> warnings
+        List<String> warnings,
+        List<PaymentOptionData> availablePaymentOptions
 ) {
     public record CustomerData(
             String id,
@@ -35,14 +37,16 @@ public record ContractFormInitResponseData(
             String projectCode,
             String projectName,
             String deliveryRequirements,
-            String note
+            String note,
+            PaymentOptionData paymentOption
     ) {
     }
 
     public record DefaultsData(
             String suggestedPaymentTerms,
             String suggestedDeliveryAddress,
-            String suggestedDeliveryTerms
+            String suggestedDeliveryTerms,
+            PaymentOptionData suggestedPaymentOption
     ) {
     }
 

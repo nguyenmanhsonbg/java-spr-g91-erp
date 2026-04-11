@@ -15,6 +15,7 @@ import com.g90.backend.modules.contract.repository.ContractRepository;
 import com.g90.backend.modules.debt.entity.PaymentAllocationEntity;
 import com.g90.backend.modules.debt.repository.PaymentAllocationRepository;
 import com.g90.backend.modules.email.service.EmailService;
+import com.g90.backend.modules.payment.dto.ConvertContractToInvoiceRequest;
 import com.g90.backend.modules.payment.dto.InvoiceCancelRequest;
 import com.g90.backend.modules.payment.dto.InvoiceCreateRequest;
 import com.g90.backend.modules.payment.dto.InvoiceItemRequest;
@@ -143,6 +144,22 @@ public class InvoiceServiceImpl implements InvoiceService {
         InvoiceResponse response = toInvoiceResponse(saved, buildPaymentSummaries(List.of(saved)).get(saved.getId()), List.of());
         logAudit("CREATE_INVOICE", "INVOICE", saved.getId(), null, response, currentUser.userId());
         return response;
+    }
+
+    @Override
+    @Transactional
+    public InvoiceResponse convertContractToInvoice(String contractId, ConvertContractToInvoiceRequest request) {
+        InvoiceCreateRequest createRequest = new InvoiceCreateRequest();
+        createRequest.setContractId(contractId);
+        createRequest.setIssueDate(request.getIssueDate());
+        createRequest.setDueDate(request.getDueDate());
+        createRequest.setAdjustmentAmount(request.getAdjustmentAmount());
+        createRequest.setBillingAddress(request.getBillingAddress());
+        createRequest.setPaymentTerms(request.getPaymentTerms());
+        createRequest.setNote(request.getNote());
+        createRequest.setStatus(request.getStatus());
+        createRequest.setItems(request.getItems());
+        return createInvoice(createRequest);
     }
 
     @Override

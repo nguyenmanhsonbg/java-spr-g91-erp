@@ -6,6 +6,7 @@ import com.g90.backend.modules.user.dto.ChangePasswordRequest;
 import com.g90.backend.modules.user.dto.ForgotPasswordRequest;
 import com.g90.backend.modules.user.dto.LoginRequest;
 import com.g90.backend.modules.user.dto.LoginResponseData;
+import com.g90.backend.modules.user.dto.PasswordResetTokenValidationResponseData;
 import com.g90.backend.modules.user.dto.RegistrationVerificationResponseData;
 import com.g90.backend.modules.user.dto.RegisterRequest;
 import com.g90.backend.modules.user.dto.RegisterResponseData;
@@ -17,14 +18,18 @@ import com.g90.backend.modules.user.service.UserManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -75,6 +80,16 @@ public class AuthController {
     public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         userManagementService.forgotPassword(request);
         return ApiResponse.success("A confirmation email has been sent", null);
+    }
+
+    @GetMapping("/reset-password/validate")
+    public ApiResponse<PasswordResetTokenValidationResponseData> validateResetPasswordToken(
+            @RequestParam("token")
+            @NotBlank(message = "Token is required")
+            @Size(max = 255, message = "Token must not exceed 255 characters")
+            String token
+    ) {
+        return ApiResponse.success("Reset password token is valid", userManagementService.validateResetPasswordToken(token));
     }
 
     @PostMapping("/reset-password")

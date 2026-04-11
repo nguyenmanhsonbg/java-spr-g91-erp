@@ -1,5 +1,6 @@
 package com.g90.backend.modules.quotation.dto;
 
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -7,7 +8,8 @@ public record QuotationFormInitResponseData(
         CustomerData customer,
         List<ProductData> products,
         List<ProjectData> projects,
-        List<PromotionData> availablePromotions
+        List<PromotionData> availablePromotions,
+        List<PaymentOptionData> availablePaymentOptions
 ) {
 
     public record CustomerData(

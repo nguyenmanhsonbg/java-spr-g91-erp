@@ -7,6 +7,7 @@ import com.g90.backend.modules.user.dto.LoginResponseData;
 import com.g90.backend.modules.user.dto.RegistrationVerificationResponseData;
 import com.g90.backend.modules.user.dto.RegisterRequest;
 import com.g90.backend.modules.user.dto.RegisterResponseData;
+import com.g90.backend.modules.user.dto.PasswordResetTokenValidationResponseData;
 import com.g90.backend.modules.user.dto.ResendVerificationCodeRequest;
 import com.g90.backend.modules.user.dto.ResendVerificationCodeResponseData;
 import com.g90.backend.modules.user.dto.ResetPasswordRequest;
@@ -29,6 +30,8 @@ public interface UserManagementService {
     void changePassword(ChangePasswordRequest request);
 
     void forgotPassword(ForgotPasswordRequest request);
+
+    PasswordResetTokenValidationResponseData validateResetPasswordToken(String token);
 
     void resetPassword(ResetPasswordRequest request);
 

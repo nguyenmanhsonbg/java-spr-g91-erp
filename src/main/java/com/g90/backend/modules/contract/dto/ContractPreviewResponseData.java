@@ -1,5 +1,6 @@
 package com.g90.backend.modules.contract.dto;
 
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ public record ContractPreviewResponseData(
         String quotationId,
         String quotationNumber,
         List<ContractItemResponse> items,
+        PaymentOptionData paymentOption,
         BigDecimal totalAmount,
         boolean requiresApproval,
         String approvalTier,

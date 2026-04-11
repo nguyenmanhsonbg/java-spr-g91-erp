@@ -25,6 +25,7 @@ import com.g90.backend.modules.user.dto.ChangePasswordRequest;
 import com.g90.backend.modules.user.dto.ForgotPasswordRequest;
 import com.g90.backend.modules.user.dto.LoginRequest;
 import com.g90.backend.modules.user.dto.LoginResponseData;
+import com.g90.backend.modules.user.dto.PasswordResetTokenValidationResponseData;
 import com.g90.backend.modules.user.dto.RegistrationVerificationResponseData;
 import com.g90.backend.modules.user.dto.RegisterRequest;
 import com.g90.backend.modules.user.dto.RegisterResponseData;
@@ -213,6 +214,22 @@ public class UserManagementServiceImpl implements UserManagementService {
                     user.getId()
             );
         });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PasswordResetTokenValidationResponseData validateResetPasswordToken(String token) {
+        String normalizedToken = normalizeNullable(token);
+        if (!StringUtils.hasText(normalizedToken)) {
+            throw new PasswordResetTokenInvalidException();
+        }
+
+        PasswordResetTokenEntity resetToken = passwordResetTokenRepository.findByTokenAndUsedFalse(normalizedToken)
+                .orElseThrow(PasswordResetTokenInvalidException::new);
+        if (resetToken.getExpiredAt().isBefore(LocalDateTime.now(APP_ZONE))) {
+            throw new PasswordResetTokenInvalidException();
+        }
+        return new PasswordResetTokenValidationResponseData(true, resetToken.getExpiredAt());
     }
 
     @Override

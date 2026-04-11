@@ -3,6 +3,7 @@ package com.g90.backend.modules.payment.controller;
 import com.g90.backend.config.OpenApiConfig;
 import com.g90.backend.dto.ApiResponse;
 import com.g90.backend.modules.payment.dto.InvoiceCancelRequest;
+import com.g90.backend.modules.payment.dto.ConvertContractToInvoiceRequest;
 import com.g90.backend.modules.payment.dto.InvoiceCreateRequest;
 import com.g90.backend.modules.payment.dto.InvoiceListQuery;
 import com.g90.backend.modules.payment.dto.InvoiceListResponseData;
@@ -37,6 +38,18 @@ public class InvoiceController {
     public ResponseEntity<ApiResponse<InvoiceResponse>> createInvoice(@Valid @RequestBody InvoiceCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Invoice created successfully", invoiceService.createInvoice(request)));
+    }
+
+    @PostMapping("/from-contract/{contractId}")
+    public ResponseEntity<ApiResponse<InvoiceResponse>> convertContractToInvoice(
+            @PathVariable String contractId,
+            @Valid @RequestBody ConvertContractToInvoiceRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        "Invoice converted from contract successfully",
+                        invoiceService.convertContractToInvoice(contractId, request)
+                ));
     }
 
     @GetMapping

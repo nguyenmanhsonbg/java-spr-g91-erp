@@ -5,6 +5,8 @@ import com.g90.backend.modules.contract.dto.ContractItemResponse;
 import com.g90.backend.modules.contract.dto.ContractListResponseData;
 import com.g90.backend.modules.contract.dto.ContractResponse;
 import com.g90.backend.modules.contract.dto.ContractTrackingResponseData;
+import com.g90.backend.modules.payment.dto.PaymentOptionData;
+import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
 import com.g90.backend.modules.contract.entity.ContractDocumentEntity;
 import com.g90.backend.modules.contract.entity.ContractEntity;
 import com.g90.backend.modules.contract.entity.ContractItemEntity;
@@ -31,6 +33,7 @@ public class ContractMapper {
                 contract.isRequiresApproval(),
                 contract.isConfidential(),
                 contract.getPaymentTerms(),
+                toPaymentOptionData(contract.getPaymentOption()),
                 contract.getDeliveryAddress(),
                 contract.getDeliveryTerms(),
                 contract.getExpectedDeliveryDate(),
@@ -135,5 +138,12 @@ public class ContractMapper {
                 event.getActualAt(),
                 event.getTrackingNumber()
         );
+    }
+
+    public PaymentOptionData toPaymentOptionData(PaymentOptionEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return new PaymentOptionData(entity.getCode(), entity.getName(), entity.getDescription());
     }
 }

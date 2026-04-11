@@ -26,6 +26,9 @@ public class QuotationSubmitActionRequest {
     @Size(max = 50, message = "Promotion code must not exceed 50 characters")
     private String promotionCode;
 
+    @Size(max = 20, message = "Payment option code must not exceed 20 characters")
+    private String paymentOptionCode;
+
     @Size(max = 1000, message = "Note must not exceed 1000 characters")
     private String note;
 

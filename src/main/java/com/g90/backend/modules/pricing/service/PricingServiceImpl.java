@@ -54,6 +54,8 @@ public class PricingServiceImpl implements PricingService {
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final String ENTITY_TYPE = "PRICE_LIST";
     private static final Set<String> ACTIVE_ORDER_STATUSES = Set.of(
+            ContractStatus.PENDING_CUSTOMER_APPROVAL.name(),
+            ContractStatus.CUSTOMER_APPROVAL.name(),
             ContractStatus.PENDING_APPROVAL.name(),
             ContractStatus.APPROVED.name(),
             ContractStatus.SUBMITTED.name(),

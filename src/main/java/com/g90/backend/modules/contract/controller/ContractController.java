@@ -118,6 +118,30 @@ public class ContractController {
         return ApiResponse.success("Contract submission processed successfully", contractService.submitContract(contractId, request));
     }
 
+    @PostMapping("/{contractId}/customer-approve")
+    public ApiResponse<ContractApprovalResponseData> approveByCustomer(
+            @PathVariable String contractId,
+            @Valid @RequestBody ContractApprovalDecisionRequest request
+    ) {
+        return ApiResponse.success("Customer contract approval processed successfully", contractService.approveByCustomer(contractId, request));
+    }
+
+    @PostMapping("/{contractId}/customer-reject")
+    public ApiResponse<ContractApprovalResponseData> rejectByCustomer(
+            @PathVariable String contractId,
+            @Valid @RequestBody ContractApprovalDecisionRequest request
+    ) {
+        return ApiResponse.success("Customer contract rejection processed successfully", contractService.rejectByCustomer(contractId, request));
+    }
+
+    @PostMapping("/{contractId}/accountant-reject")
+    public ApiResponse<ContractApprovalResponseData> rejectCustomerApproval(
+            @PathVariable String contractId,
+            @Valid @RequestBody ContractApprovalDecisionRequest request
+    ) {
+        return ApiResponse.success("Accountant contract rejection processed successfully", contractService.rejectCustomerApproval(contractId, request));
+    }
+
     @GetMapping("/{contractId}/tracking")
     public ApiResponse<ContractTrackingResponseData> getTracking(@PathVariable String contractId) {
         return ApiResponse.success("Contract tracking fetched successfully", contractService.getTracking(contractId));

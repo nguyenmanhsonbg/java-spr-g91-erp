@@ -27,6 +27,7 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
             "customer",
             "customer.user",
             "quotation",
+            "paymentOption",
             "items",
             "items.product"
     })
@@ -37,6 +38,7 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
             "customer",
             "customer.user",
             "quotation",
+            "paymentOption",
             "items",
             "items.product"
     })

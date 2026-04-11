@@ -4,6 +4,8 @@ import java.util.Locale;
 
 public enum ContractStatus {
     DRAFT,
+    PENDING_CUSTOMER_APPROVAL,
+    CUSTOMER_APPROVAL,
     PENDING_APPROVAL,
     APPROVED,
     REJECTED,

@@ -27,6 +27,9 @@ public class QuotationSubmitRequest {
     @Size(max = 50, message = "Promotion code must not exceed 50 characters")
     private String promotionCode;
 
+    @Size(max = 20, message = "Payment option code must not exceed 20 characters")
+    private String paymentOptionCode;
+
     @Valid
     @NotEmpty(message = "At least one quotation item is required")
     @Size(max = 20, message = "Quotation can contain at most 20 items")
