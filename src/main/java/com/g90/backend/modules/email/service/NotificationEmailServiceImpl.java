@@ -14,6 +14,7 @@ import org.springframework.web.util.UriUtils;
 @RequiredArgsConstructor
 public class NotificationEmailServiceImpl implements NotificationEmailService {
 
+    private static final String RESET_TOKEN_PLACEHOLDER = "{token}";
     private static final String REGISTRATION_VERIFICATION_TEMPLATE = "email/registration-verification";
     private static final String PASSWORD_RESET_TEMPLATE = "email/forgot-password";
     private static final String CONTRACT_DOCUMENT_TEMPLATE = "email/contract-document";
@@ -154,12 +155,21 @@ public class NotificationEmailServiceImpl implements NotificationEmailService {
     }
 
     private String buildResetPasswordUrl(String resetToken) {
+        String encodedToken = UriUtils.encode(resetToken, StandardCharsets.UTF_8);
+        String configuredUrl = normalizeNullable(emailProperties.getResetPasswordUrlTemplate());
+        if (StringUtils.hasText(configuredUrl)) {
+            if (configuredUrl.contains(RESET_TOKEN_PLACEHOLDER)) {
+                return configuredUrl.replace(RESET_TOKEN_PLACEHOLDER, encodedToken);
+            }
+            return appendTokenQueryParameter(configuredUrl, encodedToken);
+        }
+
         if (!StringUtils.hasText(emailProperties.getAssetsBaseUrl())) {
             return null;
         }
         return trimTrailingSlash(emailProperties.getAssetsBaseUrl())
                 + "/reset-password?token="
-                + UriUtils.encode(resetToken, StandardCharsets.UTF_8);
+                + encodedToken;
     }
 
     private String resolveCompanyName() {
@@ -175,5 +185,16 @@ public class NotificationEmailServiceImpl implements NotificationEmailService {
 
     private String trimTrailingSlash(String value) {
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    private String appendTokenQueryParameter(String url, String encodedToken) {
+        if (url.endsWith("?") || url.endsWith("&")) {
+            return url + "token=" + encodedToken;
+        }
+        return url + (url.contains("?") ? "&" : "?") + "token=" + encodedToken;
+    }
+
+    private String normalizeNullable(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

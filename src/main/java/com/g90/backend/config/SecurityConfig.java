@@ -121,6 +121,8 @@ public class SecurityConfig {
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/invoices", "/api/invoices/*")
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/payment-options")
+                        .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.POST, "/api/invoices")
                         .hasAnyRole("ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.PUT, "/api/invoices/*")

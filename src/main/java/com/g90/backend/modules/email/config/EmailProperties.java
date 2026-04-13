@@ -11,6 +11,7 @@ public class EmailProperties {
 
     private boolean enabled = true;
     private String assetsBaseUrl = "";
+    private String resetPasswordUrlTemplate = "";
     private String companyName = "G90 Steel";
     private String supportEmail;
     private Verification verification = new Verification();
