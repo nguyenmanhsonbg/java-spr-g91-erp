@@ -84,6 +84,7 @@ public class DebtServiceImpl implements DebtService, PaymentService {
     private final DebtInvoiceRepository debtInvoiceRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
+    private final PaymentExecutionService paymentExecutionService;
     private final DebtReminderRepository debtReminderRepository;
     private final DebtSettlementRepository debtSettlementRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -97,6 +98,7 @@ public class DebtServiceImpl implements DebtService, PaymentService {
             DebtInvoiceRepository debtInvoiceRepository,
             PaymentRepository paymentRepository,
             PaymentAllocationRepository paymentAllocationRepository,
+            PaymentExecutionService paymentExecutionService,
             DebtReminderRepository debtReminderRepository,
             DebtSettlementRepository debtSettlementRepository,
             CurrentUserProvider currentUserProvider,
@@ -109,6 +111,7 @@ public class DebtServiceImpl implements DebtService, PaymentService {
         this.debtInvoiceRepository = debtInvoiceRepository;
         this.paymentRepository = paymentRepository;
         this.paymentAllocationRepository = paymentAllocationRepository;
+        this.paymentExecutionService = paymentExecutionService;
         this.debtReminderRepository = debtReminderRepository;
         this.debtSettlementRepository = debtSettlementRepository;
         this.currentUserProvider = currentUserProvider;
@@ -130,38 +133,25 @@ public class DebtServiceImpl implements DebtService, PaymentService {
         }
 
         validatePaymentPolicy(request);
-        if (paymentRepository.existsDuplicate(
+        List<ResolvedAllocation> expectedAllocations = buildExpectedAllocations(openInvoices, request.getAmount());
+        validateRequestedAllocations(request.getAllocations(), expectedAllocations, request.getAmount());
+        PaymentEntity savedPayment = paymentExecutionService.recordPayment(new PaymentExecutionCommand(
                 customer.getId(),
                 request.getPaymentDate(),
                 request.getAmount(),
                 request.getPaymentMethod(),
-                request.getReferenceNo()
-        )) {
-            throw RequestValidationException.singleError("referenceNo", "Duplicate payment detected");
-        }
-
-        List<ResolvedAllocation> expectedAllocations = buildExpectedAllocations(openInvoices, request.getAmount());
-        validateRequestedAllocations(request.getAllocations(), expectedAllocations, request.getAmount());
-
-        PaymentEntity payment = new PaymentEntity();
-        payment.setCustomerId(customer.getId());
-        payment.setAmount(request.getAmount());
-        payment.setPaymentDate(request.getPaymentDate());
-        payment.setPaymentMethod(request.getPaymentMethod());
-        payment.setReferenceNo(request.getReferenceNo());
-        payment.setNote(request.getNote());
-        payment.setCreatedBy(currentUser.userId());
-
-        for (ResolvedAllocation allocation : expectedAllocations) {
-            PaymentAllocationEntity entity = new PaymentAllocationEntity();
-            entity.setPayment(payment);
-            entity.setInvoice(allocation.invoice());
-            entity.setAmount(allocation.amount());
-            payment.getAllocations().add(entity);
-        }
-
-        PaymentEntity savedPayment = paymentRepository.save(payment);
-        updateTouchedInvoiceStatuses(expectedAllocations);
+                request.getReferenceNo(),
+                request.getNote(),
+                null,
+                "CONFIRMED",
+                currentUser.userId(),
+                expectedAllocations.stream()
+                        .map(allocation -> new PaymentExecutionCommand.PaymentExecutionAllocation(
+                                allocation.invoice().getId(),
+                                allocation.amount()
+                        ))
+                        .toList()
+        ));
         PaymentResponse response = toPaymentResponse(savedPayment, customer);
         logAudit("RECORD_PAYMENT", "PAYMENT", savedPayment.getId(), null, response, currentUser.userId());
         return response;
@@ -835,8 +825,12 @@ public class DebtServiceImpl implements DebtService, PaymentService {
                 payment.getPaymentMethod(),
                 payment.getReferenceNo(),
                 payment.getNote(),
+                normalizeUpper(payment.getStatus()),
+                payment.getProofDocumentUrl(),
                 payment.getCreatedBy(),
+                payment.getUpdatedBy(),
                 payment.getCreatedAt(),
+                payment.getUpdatedAt(),
                 allocations
         );
     }

@@ -16,8 +16,12 @@ public record PaymentResponse(
         String paymentMethod,
         String referenceNo,
         String note,
+        String status,
+        String proofDocumentUrl,
         String createdBy,
+        String updatedBy,
         LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         List<AllocationItem> allocations
 ) {
     public record AllocationItem(

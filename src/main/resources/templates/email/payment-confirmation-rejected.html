@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+<p>Dear <span th:text="${recipientName}">Customer</span>,</p>
+<p>Your payment confirmation request for invoice <strong th:text="${invoiceNumber}">INV-0001</strong> has been rejected.</p>
+<p>Status: <strong th:text="${status}">REJECTED</strong></p>
+<p>Requested amount: <span th:text="${requestedAmount}">0.00</span></p>
+<p>Reference code: <span th:text="${referenceCode}">REF001</span></p>
+<p th:if="${reviewNote != null}">Reason: <span th:text="${reviewNote}">Insufficient proof</span></p>
+<p th:if="${proofDocumentUrl != null}">Submitted proof: <a th:href="${proofDocumentUrl}" th:text="${proofDocumentUrl}">document</a></p>
+<p>Please review the transfer details and submit a new confirmation request if needed.</p>
+</body>
+</html>

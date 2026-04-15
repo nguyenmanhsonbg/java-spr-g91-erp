@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,14 +46,26 @@ public class PaymentEntity {
     @Column(name = "payment_date")
     private LocalDate paymentDate;
 
-    @Column(name = "note", length = 500)
+    @Column(name = "note", length = 1000)
     private String note;
+
+    @Column(name = "status", length = 20)
+    private String status;
+
+    @Column(name = "proof_document_url", length = 1000)
+    private String proofDocumentUrl;
 
     @Column(name = "created_by", length = 36)
     private String createdBy;
 
+    @Column(name = "updated_by", length = 36)
+    private String updatedBy;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PaymentAllocationEntity> allocations = new ArrayList<>();
@@ -65,5 +78,16 @@ public class PaymentEntity {
         if (createdAt == null) {
             createdAt = LocalDateTime.now(APP_ZONE);
         }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+        if (!StringUtils.hasText(status)) {
+            status = "CONFIRMED";
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now(APP_ZONE);
     }
 }

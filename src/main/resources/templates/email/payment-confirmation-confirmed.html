@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+<p>Dear <span th:text="${recipientName}">Customer</span>,</p>
+<p>Your payment confirmation request for invoice <strong th:text="${invoiceNumber}">INV-0001</strong> has been approved.</p>
+<p>Status: <strong th:text="${status}">CONFIRMED</strong></p>
+<p>Requested amount: <span th:text="${requestedAmount}">0.00</span></p>
+<p>Confirmed amount: <span th:text="${confirmedAmount}">0.00</span></p>
+<p>Outstanding amount after confirmation: <span th:text="${outstandingAmount}">0.00</span></p>
+<p>Reference code: <span th:text="${referenceCode}">REF001</span></p>
+<p th:if="${reviewNote != null}">Review note: <span th:text="${reviewNote}">Approved</span></p>
+<p th:if="${paymentId != null}">Payment ID: <span th:text="${paymentId}">payment-id</span></p>
+<p th:if="${proofDocumentUrl != null}">Proof document: <a th:href="${proofDocumentUrl}" th:text="${proofDocumentUrl}">document</a></p>
+<p>Thank you.</p>
+</body>
+</html>
