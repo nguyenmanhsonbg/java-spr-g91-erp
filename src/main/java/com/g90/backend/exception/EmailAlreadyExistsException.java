@@ -9,7 +9,7 @@ public class EmailAlreadyExistsException extends ApiException {
     public EmailAlreadyExistsException() {
         super(
                 HttpStatus.CONFLICT,
-                "MSG21",
+                "EMAIL_ALREADY_EXISTS",
                 "Email already exists",
                 List.of(ValidationErrorItem.builder()
                         .field("email")

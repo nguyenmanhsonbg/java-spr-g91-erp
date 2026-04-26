@@ -306,7 +306,7 @@ public class DebtServiceImpl implements DebtService, PaymentService {
             if (invoice.overdueDays() <= 0) {
                 throw RequestValidationException.singleError("invoiceIds", "Reminder can only be sent for overdue invoices");
             }
-            if (debtReminderRepository.countByInvoice_Id(invoiceId) >= MAX_REMINDERS_PER_INVOICE) {
+            if (debtReminderRepository.countByInvoice_IdAndReminderTypeIn(invoiceId, ALLOWED_REMINDER_TYPES) >= MAX_REMINDERS_PER_INVOICE) {
                 throw RequestValidationException.singleError("invoiceIds", "Reminder limit reached for invoice " + invoice.invoice().getInvoiceNumber());
             }
             selectedInvoices.add(invoice);

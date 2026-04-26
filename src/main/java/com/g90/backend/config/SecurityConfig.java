@@ -118,7 +118,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/projects/*/milestones/*/confirm")
                         .hasRole("CUSTOMER")
                         .requestMatchers(HttpMethod.GET, "/api/projects", "/api/projects/*", "/api/projects/*/milestones")
-                        .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
+                        .hasAnyRole("CUSTOMER", "WAREHOUSE", "ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/invoices", "/api/invoices/*")
                         .hasAnyRole("CUSTOMER", "ACCOUNTANT", "OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/payment-options")

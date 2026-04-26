@@ -5,6 +5,6 @@ import org.springframework.http.HttpStatus;
 public class QuotationNotFoundException extends ApiException {
 
     public QuotationNotFoundException() {
-        super(HttpStatus.NOT_FOUND, "NOT_FOUND", "Requested resource not found");
+        super(HttpStatus.NOT_FOUND, "QUOTATION_NOT_FOUND", "Quotation not found");
     }
 }

@@ -9,7 +9,7 @@ public class InvalidDateRangeException extends ApiException {
     public InvalidDateRangeException() {
         super(
                 HttpStatus.BAD_REQUEST,
-                "MSG50",
+                "INVALID_DATE_RANGE",
                 "Invalid date range",
                 List.of(ValidationErrorItem.builder()
                         .field("validFrom")

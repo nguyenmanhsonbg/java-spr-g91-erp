@@ -32,6 +32,22 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, String> 
     List<InvoiceEntity> findByContractIdWithCustomerAndContract(@Param("contractId") String contractId);
 
     @Query("""
+            select i
+            from PaymentInvoiceEntity i
+            left join fetch i.customer customer
+            left join fetch customer.user
+            left join fetch i.contract contract
+            where i.dueDate between :fromDate and :toDate
+              and (i.status is null or upper(i.status) not in :excludedStatuses)
+            order by customer.id asc, i.dueDate asc, i.createdAt asc
+            """)
+    List<InvoiceEntity> findDueReminderCandidates(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("excludedStatuses") Collection<String> excludedStatuses
+    );
+
+    @Query("""
             select distinct i
             from PaymentInvoiceEntity i
             left join fetch i.customer customer

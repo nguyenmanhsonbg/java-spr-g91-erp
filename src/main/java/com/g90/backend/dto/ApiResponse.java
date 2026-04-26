@@ -10,6 +10,9 @@ import lombok.Getter;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
+    private static final String DEFAULT_ERROR_CODE = "INTERNAL_SERVER_ERROR";
+    private static final String DEFAULT_ERROR_MESSAGE = "An unexpected error occurred";
+
     private final String code;
     private final String message;
     private final T data;
@@ -25,13 +28,17 @@ public class ApiResponse<T> {
 
     public static ApiResponse<Void> error(String code, String message, List<ValidationErrorItem> errors) {
         return ApiResponse.<Void>builder()
-                .code(code)
-                .message(message)
+                .code(hasText(code) ? code : DEFAULT_ERROR_CODE)
+                .message(hasText(message) ? message : DEFAULT_ERROR_MESSAGE)
                 .errors(errors == null || errors.isEmpty() ? null : errors)
                 .build();
     }
 
     public static ApiResponse<Void> error(String code, String message) {
         return error(code, message, null);
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

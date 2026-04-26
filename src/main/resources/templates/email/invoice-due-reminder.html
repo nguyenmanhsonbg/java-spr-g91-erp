@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Payment Due Reminder</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #1f2937;">
+<p>Dear <span th:text="${recipientName}">Customer</span>,</p>
+<p th:text="${message}">The following invoices are due today.</p>
+
+<table style="border-collapse: collapse; width: 100%; margin-top: 16px;">
+    <thead>
+    <tr>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Invoice</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: left;">Due Date</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Total</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Paid</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Outstanding</th>
+        <th style="border: 1px solid #d1d5db; padding: 8px; text-align: right;">Days Until Due</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="invoice : ${invoices}">
+        <td style="border: 1px solid #d1d5db; padding: 8px;" th:text="${invoice.invoiceNumber}">INV-001</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px;" th:text="${invoice.dueDate}">2026-04-26</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;" th:text="${invoice.grandTotal}">0.00</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;" th:text="${invoice.paidAmount}">0.00</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;" th:text="${invoice.outstandingAmount}">0.00</td>
+        <td style="border: 1px solid #d1d5db; padding: 8px; text-align: right;" th:text="${invoice.daysUntilDue}">0</td>
+    </tr>
+    </tbody>
+</table>
+
+<p style="margin-top: 16px;">
+    Total outstanding: <strong th:text="${totalOutstanding}">0.00</strong>
+</p>
+<p>
+    Please contact our accounting team
+    <span th:if="${supportEmail != null and !#strings.isEmpty(supportEmail)}">
+        at <a th:href="'mailto:' + ${supportEmail}" th:text="${supportEmail}">support@example.com</a>
+    </span>
+    if you need assistance.
+</p>
+<p th:text="'Sent at: ' + ${sentAt}">Sent at: 2026-04-26T08:00:00</p>
+</body>
+</html>

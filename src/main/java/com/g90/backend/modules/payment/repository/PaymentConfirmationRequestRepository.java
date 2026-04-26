@@ -12,6 +12,16 @@ public interface PaymentConfirmationRequestRepository extends JpaRepository<Paym
 
     boolean existsByInvoice_IdAndStatus(String invoiceId, String status);
 
+    long countByStatus(String status);
+
+    long countByCustomer_IdAndStatus(String customerId, String status);
+
+    @EntityGraph(attributePaths = {"invoice", "invoice.customer", "customer"})
+    List<PaymentConfirmationRequestEntity> findByStatusOrderByCreatedAtAsc(String status);
+
+    @EntityGraph(attributePaths = {"invoice", "invoice.customer", "customer"})
+    List<PaymentConfirmationRequestEntity> findByCustomer_IdAndStatusOrderByCreatedAtAsc(String customerId, String status);
+
     @EntityGraph(attributePaths = {"invoice", "customer"})
     @Query("""
             select r

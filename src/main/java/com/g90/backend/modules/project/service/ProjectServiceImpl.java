@@ -653,13 +653,17 @@ public class ProjectServiceImpl implements ProjectService {
     private ProjectManagementEntity loadAccessibleProject(String projectId) {
         UserAccountEntity currentUser = loadCurrentUserEntity();
         return switch (roleOf(currentUser)) {
-            case ACCOUNTANT, OWNER -> loadProjectForAccountant(projectId);
+            case ACCOUNTANT, OWNER, WAREHOUSE -> loadProjectForInternalUser(projectId);
             case CUSTOMER -> loadProjectForCustomer(projectId);
             default -> throw new ForbiddenOperationException("You do not have permission to access this project");
         };
     }
 
     private ProjectManagementEntity loadProjectForAccountant(String projectId) {
+        return loadProjectForInternalUser(projectId);
+    }
+
+    private ProjectManagementEntity loadProjectForInternalUser(String projectId) {
         return projectRepository.findDetailedById(projectId)
                 .orElseThrow(ProjectNotFoundException::new);
     }

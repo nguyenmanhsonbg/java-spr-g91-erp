@@ -112,6 +112,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -124,7 +125,7 @@ public class ContractServiceImpl implements ContractService {
 
     private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final BigDecimal HUNDRED = new BigDecimal("100");
-    private static final BigDecimal HIGH_VALUE_APPROVAL_THRESHOLD = new BigDecimal("500000000.00");
+    private static final BigDecimal DEFAULT_HIGH_VALUE_APPROVAL_THRESHOLD = new BigDecimal("500000000.00");
     private static final BigDecimal CANCELLATION_APPROVAL_THRESHOLD = new BigDecimal("100000000.00");
     private static final BigDecimal MINIMUM_ALLOWED_PRICE_FACTOR = new BigDecimal("0.90");
     private static final BigDecimal TEN_PERCENT = new BigDecimal("10.00");
@@ -183,6 +184,7 @@ public class ContractServiceImpl implements ContractService {
     private final ContractMapper contractMapper;
     private final CurrentUserProvider currentUserProvider;
     private final ObjectMapper objectMapper;
+    private final BigDecimal highValueApprovalThreshold;
 
     public ContractServiceImpl(
             ContractRepository contractRepository,
@@ -209,7 +211,8 @@ public class ContractServiceImpl implements ContractService {
             ContractSchedulerSupport contractSchedulerSupport,
             ContractMapper contractMapper,
             CurrentUserProvider currentUserProvider,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Value("${app.contract.approval.high-value-threshold:500000000.00}") BigDecimal highValueApprovalThreshold
     ) {
         this.contractRepository = contractRepository;
         this.contractVersionRepository = contractVersionRepository;
@@ -236,6 +239,7 @@ public class ContractServiceImpl implements ContractService {
         this.contractMapper = contractMapper;
         this.currentUserProvider = currentUserProvider;
         this.objectMapper = objectMapper;
+        this.highValueApprovalThreshold = normalizeApprovalThreshold(highValueApprovalThreshold);
     }
 
     @Override
@@ -597,12 +601,13 @@ public class ContractServiceImpl implements ContractService {
 
         String previousStatus = contract.getStatus();
         if (contract.isRequiresApproval()) {
-            String approvalReason = defaultIfNull(contract.getTotalAmount()).compareTo(HIGH_VALUE_APPROVAL_THRESHOLD) > 0
+            boolean highValueContract = isHighValueContract(contract.getTotalAmount());
+            String approvalReason = highValueContract
                     ? "Contract value exceeds owner approval threshold"
                     : "Price override requires approval";
             createApprovalRequest(
                     contract,
-                    defaultIfNull(contract.getTotalAmount()).compareTo(HIGH_VALUE_APPROVAL_THRESHOLD) > 0 ? ContractApprovalType.SUBMISSION : ContractApprovalType.PRICE_OVERRIDE,
+                    highValueContract ? ContractApprovalType.SUBMISSION : ContractApprovalType.PRICE_OVERRIDE,
                     ContractApprovalTier.OWNER,
                     ContractPendingAction.SUBMIT,
                     approvalReason,
@@ -988,7 +993,7 @@ public class ContractServiceImpl implements ContractService {
             items.add(new PreparedItem(product, quantity, baseUnitPrice, finalUnitPrice, discountAmount, totalPrice, normalizeNullable(itemRequest.getPriceOverrideReason())));
         }
 
-        if (totalAmount.compareTo(HIGH_VALUE_APPROVAL_THRESHOLD) > 0) {
+        if (isHighValueContract(totalAmount)) {
             requiresApproval = true;
         }
 
@@ -1324,8 +1329,8 @@ public class ContractServiceImpl implements ContractService {
         if (ContractPendingAction.CANCEL.name().equalsIgnoreCase(contract.getPendingAction())) {
             reasons.add("Cancellation request requires approval before inventory and downstream records are updated");
         }
-        if (defaultIfNull(contract.getTotalAmount()).compareTo(HIGH_VALUE_APPROVAL_THRESHOLD) > 0) {
-            reasons.add("Contract total exceeds 500,000,000 VND approval threshold");
+        if (isHighValueContract(contract.getTotalAmount())) {
+            reasons.add("Contract total exceeds configured approval threshold: " + highValueApprovalThreshold.toPlainString() + " VND");
         }
         if (defaultIfNull(contract.getPriceChangePercent()).compareTo(TEN_PERCENT) > 0) {
             reasons.add("Price change exceeds 10% threshold");
@@ -1961,6 +1966,17 @@ public class ContractServiceImpl implements ContractService {
 
     private BigDecimal defaultIfNull(BigDecimal value) {
         return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : normalizeMoney(value);
+    }
+
+    private BigDecimal normalizeApprovalThreshold(BigDecimal threshold) {
+        if (threshold == null || threshold.compareTo(BigDecimal.ZERO) < 0) {
+            return DEFAULT_HIGH_VALUE_APPROVAL_THRESHOLD;
+        }
+        return threshold.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isHighValueContract(BigDecimal totalAmount) {
+        return defaultIfNull(totalAmount).compareTo(highValueApprovalThreshold) > 0;
     }
 
     private BigDecimal defaultQuantity(BigDecimal value) {

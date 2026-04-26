@@ -54,4 +54,30 @@ public interface ContractRepository extends JpaRepository<ContractEntity, String
             order by c.approvalRequestedAt asc, c.createdAt asc
             """)
     List<ContractEntity> findPendingApprovalContracts();
+
+    @EntityGraph(attributePaths = {"customer"})
+    @Query("""
+            select distinct c
+            from ContractEntity c
+            left join fetch c.customer customer
+            where c.status in :statuses
+              and (c.saleOrderNumber is not null or c.submittedAt is not null)
+            order by c.expectedDeliveryDate asc, c.submittedAt asc, c.createdAt asc
+            """)
+    List<ContractEntity> findSaleOrdersByStatusIn(@Param("statuses") Collection<String> statuses);
+
+    @EntityGraph(attributePaths = {"customer"})
+    @Query("""
+            select distinct c
+            from ContractEntity c
+            left join fetch c.customer customer
+            where c.customer.id = :customerId
+              and c.status in :statuses
+              and (c.saleOrderNumber is not null or c.submittedAt is not null)
+            order by c.expectedDeliveryDate asc, c.submittedAt asc, c.createdAt asc
+            """)
+    List<ContractEntity> findSaleOrdersByCustomerIdAndStatusIn(
+            @Param("customerId") String customerId,
+            @Param("statuses") Collection<String> statuses
+    );
 }

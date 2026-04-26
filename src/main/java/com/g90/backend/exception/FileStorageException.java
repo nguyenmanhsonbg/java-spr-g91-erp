@@ -1,6 +1,5 @@
 package com.g90.backend.exception;
 
-import java.util.List;
 import org.springframework.http.HttpStatus;
 
 public class FileStorageException extends ApiException {
