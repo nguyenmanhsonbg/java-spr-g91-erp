@@ -72,6 +72,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
     private final EmailService emailService;
+    private final ContractBillingService contractBillingService;
 
     public InvoiceServiceImpl(
             InvoiceRepository invoiceRepository,
@@ -81,7 +82,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             CurrentUserProvider currentUserProvider,
             AuditLogRepository auditLogRepository,
             ObjectMapper objectMapper,
-            EmailService emailService
+            EmailService emailService,
+            ContractBillingService contractBillingService
     ) {
         this.invoiceRepository = invoiceRepository;
         this.contractRepository = contractRepository;
@@ -91,6 +93,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         this.auditLogRepository = auditLogRepository;
         this.objectMapper = objectMapper;
         this.emailService = emailService;
+        this.contractBillingService = contractBillingService;
     }
 
     @Override
@@ -99,22 +102,24 @@ public class InvoiceServiceImpl implements InvoiceService {
         AuthenticatedUser currentUser = requireInvoiceManager();
         normalizeAndValidateCreateRequest(request);
 
-        ContractEntity contract = loadBillableContract(request.getContractId());
-        if (invoiceRepository.existsByContract_IdAndStatusNotIn(contract.getId(), List.of("CANCELLED", "VOID"))) {
-            throw RequestValidationException.singleError("contractId", "Contract already has an active invoice");
-        }
+        ContractEntity contract = loadBillableContract(request.getContractId(), request.getBillingPhase());
+        String billingPhase = contractBillingService.resolveRequestedBillingPhase(contract, request.getBillingPhase());
 
         CustomerProfileEntity customer = contract.getCustomer();
-        List<ResolvedInvoiceItem> items = request.getItems() == null
+        List<ResolvedInvoiceItem> items = request.getItems() == null && isStructuredBillingPhase(billingPhase)
+                ? resolveBillingPhaseItems(contract, billingPhase, null)
+                : request.getItems() == null
                 ? resolveContractItems(contract)
                 : resolveRequestedItems(contract, request.getItems());
         InvoiceAmounts amounts = computeInvoiceAmounts(customer, items, request.getAdjustmentAmount());
+        contractBillingService.validateInvoiceCreation(contract, billingPhase, amounts.totalAmount(), null);
 
         InvoiceEntity invoice = new InvoiceEntity();
         invoice.setInvoiceNumber(generateInvoiceNumber(request.getIssueDate()));
         invoice.setContract(contract);
         invoice.setCustomer(customer);
         invoice.setSourceType("CONTRACT");
+        invoice.setBillingPhase(billingPhase);
         invoice.setCustomerName(normalizeNullable(customer.getCompanyName()));
         invoice.setCustomerTaxCode(normalizeNullable(customer.getTaxCode()));
         invoice.setBillingAddress(firstNonBlank(request.getBillingAddress(), customer.getAddress()));
@@ -158,6 +163,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         createRequest.setPaymentTerms(request.getPaymentTerms());
         createRequest.setNote(request.getNote());
         createRequest.setStatus(request.getStatus());
+        createRequest.setBillingPhase(request.getBillingPhase());
         createRequest.setItems(request.getItems());
         return createInvoice(createRequest);
     }
@@ -253,6 +259,12 @@ public class InvoiceServiceImpl implements InvoiceService {
                 customer,
                 items,
                 request.getAdjustmentAmount() != null ? normalizeMoney(request.getAdjustmentAmount()) : normalizeMoney(invoice.getAdjustmentAmount())
+        );
+        contractBillingService.validateInvoiceCreation(
+                contract,
+                normalizeBillingPhase(invoice.getBillingPhase()),
+                amounts.totalAmount(),
+                invoice.getId()
         );
         BigDecimal previousGrandTotal = grandTotal(invoice.getTotalAmount(), invoice.getVatAmount());
         if (amounts.grandTotal().compareTo(previousGrandTotal.multiply(UPDATE_APPROVAL_THRESHOLD).setScale(2, RoundingMode.HALF_UP)) > 0
@@ -369,14 +381,29 @@ public class InvoiceServiceImpl implements InvoiceService {
         return invoiceRepository.findDetailedById(invoiceId).orElseThrow(InvoiceNotFoundException::new);
     }
 
-    private ContractEntity loadBillableContract(String contractId) {
+    private ContractEntity loadBillableContract(String contractId, String requestedBillingPhase) {
         ContractEntity contract = contractRepository.findDetailedById(contractId)
                 .orElseThrow(() -> RequestValidationException.singleError("contractId", "Contract not found"));
         if (contract.getCustomer() == null) {
             throw RequestValidationException.singleError("contractId", "Contract is missing customer information");
         }
-        if (!INVOICE_ELIGIBLE_CONTRACT_STATUSES.contains(normalizeUpper(contract.getStatus()))) {
+        String requestedPhase = normalizeUpper(requestedBillingPhase);
+        boolean upfrontPhase = ContractBillingService.PHASE_FULL.equals(requestedPhase)
+                || ContractBillingService.PHASE_DEPOSIT.equals(requestedPhase);
+        boolean submittedOrLater = Set.of(
+                "SUBMITTED",
+                "PROCESSING",
+                "RESERVED",
+                "PICKED",
+                "IN_TRANSIT",
+                "DELIVERED",
+                "COMPLETED"
+        ).contains(normalizeUpper(contract.getStatus()));
+        if (!upfrontPhase && !INVOICE_ELIGIBLE_CONTRACT_STATUSES.contains(normalizeUpper(contract.getStatus()))) {
             throw RequestValidationException.singleError("contractId", "Invoice can only be created from a delivered or completed sale order");
+        }
+        if (upfrontPhase && !submittedOrLater) {
+            throw RequestValidationException.singleError("contractId", "Upfront invoice can only be created after contract submission");
         }
         return contract;
     }
@@ -412,6 +439,37 @@ public class InvoiceServiceImpl implements InvoiceService {
             index++;
         }
         return items;
+    }
+
+    private List<ResolvedInvoiceItem> resolveBillingPhaseItems(ContractEntity contract, String billingPhase, String currentInvoiceId) {
+        BigDecimal amount = contractBillingService.remainingPhaseAmount(contract, billingPhase, currentInvoiceId);
+        if (amount.compareTo(ZERO) <= 0) {
+            throw RequestValidationException.singleError("billingPhase", "No remaining amount is available for this billing phase");
+        }
+        return List.of(new ResolvedInvoiceItem(
+                null,
+                billingPhaseDescription(contract, billingPhase),
+                "CONTRACT",
+                BigDecimal.ONE.setScale(2, RoundingMode.HALF_UP),
+                amount,
+                amount
+        ));
+    }
+
+    private boolean isStructuredBillingPhase(String billingPhase) {
+        return ContractBillingService.PHASE_DEPOSIT.equals(billingPhase)
+                || ContractBillingService.PHASE_FULL.equals(billingPhase)
+                || ContractBillingService.PHASE_FINAL.equals(billingPhase);
+    }
+
+    private String billingPhaseDescription(ContractEntity contract, String billingPhase) {
+        String contractNumber = contract == null || !StringUtils.hasText(contract.getContractNumber()) ? "contract" : "contract " + contract.getContractNumber();
+        return switch (billingPhase) {
+            case ContractBillingService.PHASE_DEPOSIT -> "Deposit payment for " + contractNumber;
+            case ContractBillingService.PHASE_FULL -> "Full upfront payment for " + contractNumber;
+            case ContractBillingService.PHASE_FINAL -> "Final payment after delivery for " + contractNumber;
+            default -> "Invoice for " + contractNumber;
+        };
     }
 
     private List<ResolvedInvoiceItem> resolveRequestedItems(ContractEntity contract, List<InvoiceItemRequest> requestedItems) {
@@ -575,6 +633,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 invoice.getId(),
                 invoice.getInvoiceNumber(),
                 normalizeUpper(invoice.getSourceType()),
+                normalizeBillingPhase(invoice.getBillingPhase()),
                 invoice.getContract() == null ? null : invoice.getContract().getId(),
                 invoice.getContract() == null ? null : invoice.getContract().getContractNumber(),
                 invoice.getCustomer() == null ? null : invoice.getCustomer().getId(),
@@ -617,6 +676,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 invoice.getId(),
                 invoice.getInvoiceNumber(),
                 normalizeUpper(invoice.getSourceType()),
+                normalizeBillingPhase(invoice.getBillingPhase()),
                 invoice.getContract() == null ? null : invoice.getContract().getId(),
                 invoice.getContract() == null ? null : invoice.getContract().getContractNumber(),
                 invoice.getCustomer() == null ? null : invoice.getCustomer().getId(),
@@ -797,6 +857,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         request.setBillingAddress(normalizeNullable(request.getBillingAddress()));
         request.setPaymentTerms(normalizeNullable(request.getPaymentTerms()));
         request.setNote(normalizeNullable(request.getNote()));
+        request.setBillingPhase(StringUtils.hasText(request.getBillingPhase()) ? normalizeUpper(request.getBillingPhase()) : null);
         String status = StringUtils.hasText(request.getStatus()) ? normalizeUpper(request.getStatus()) : "ISSUED";
         if ("OPEN".equals(status)) {
             status = "ISSUED";
@@ -922,6 +983,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("invoiceId", invoice.getId());
         payload.put("invoiceNumber", invoice.getInvoiceNumber());
+        payload.put("billingPhase", normalizeBillingPhase(invoice.getBillingPhase()));
         payload.put("status", normalizeStoredStatus(invoice.getStatus()));
         payload.put("issueDate", invoice.getIssueDate());
         payload.put("dueDate", invoice.getDueDate());
@@ -936,6 +998,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("invoiceId", invoice.id());
         payload.put("invoiceNumber", invoice.invoiceNumber());
+        payload.put("billingPhase", invoice.billingPhase());
         payload.put("status", invoice.status());
         payload.put("issueDate", invoice.issueDate());
         payload.put("dueDate", invoice.dueDate());
@@ -992,6 +1055,11 @@ public class InvoiceServiceImpl implements InvoiceService {
             return "ISSUED";
         }
         return normalized;
+    }
+
+    private String normalizeBillingPhase(String value) {
+        String normalized = normalizeUpper(value);
+        return StringUtils.hasText(normalized) ? normalized : ContractBillingService.PHASE_GENERAL;
     }
 
     private boolean containsIgnoreCase(String value, String lowerCaseQuery) {

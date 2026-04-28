@@ -1,11 +1,11 @@
-package com.g90.backend.modules.payment.dto;
+package com.g90.backend.modules.contract.dto;
 
 import com.g90.backend.modules.product.dto.PaginationResponse;
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
-public record InvoiceListResponseData(
+public record ContractCancellationSettlementListResponseData(
         List<Item> items,
         PaginationResponse pagination,
         Filters filters
@@ -13,30 +13,24 @@ public record InvoiceListResponseData(
 
     public record Item(
             String id,
-            String invoiceNumber,
-            String sourceType,
-            String billingPhase,
             String contractId,
             String contractNumber,
             String customerId,
             String customerCode,
             String customerName,
-            LocalDate issueDate,
-            LocalDate dueDate,
-            BigDecimal grandTotal,
+            String settlementType,
+            BigDecimal totalPayableAmount,
             BigDecimal paidAmount,
-            BigDecimal outstandingAmount,
             String status,
-            String documentUrl
+            LocalDateTime createdAt,
+            LocalDateTime paidAt
     ) {
     }
 
     public record Filters(
-            String keyword,
-            String invoiceNumber,
-            String customerId,
-            String customerName,
             String contractId,
+            String customerId,
+            String settlementType,
             String status
     ) {
     }

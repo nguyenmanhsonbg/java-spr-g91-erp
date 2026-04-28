@@ -50,6 +50,7 @@ import com.g90.backend.modules.contract.entity.ContractApprovalStatus;
 import com.g90.backend.modules.contract.entity.ContractApprovalTier;
 import com.g90.backend.modules.contract.entity.ContractApprovalType;
 import com.g90.backend.modules.contract.entity.ContractCancellationReason;
+import com.g90.backend.modules.contract.entity.ContractCancellationSettlementEntity;
 import com.g90.backend.modules.contract.entity.ContractDocumentEntity;
 import com.g90.backend.modules.contract.entity.ContractDocumentType;
 import com.g90.backend.modules.contract.entity.ContractEntity;
@@ -69,6 +70,7 @@ import com.g90.backend.modules.contract.integration.ContractPricingGateway;
 import com.g90.backend.modules.contract.integration.ContractSchedulerSupport;
 import com.g90.backend.modules.contract.mapper.ContractMapper;
 import com.g90.backend.modules.contract.repository.ContractApprovalRepository;
+import com.g90.backend.modules.contract.repository.ContractCancellationSettlementRepository;
 import com.g90.backend.modules.contract.repository.ContractDocumentRepository;
 import com.g90.backend.modules.contract.repository.ContractRepository;
 import com.g90.backend.modules.contract.repository.ContractSpecifications;
@@ -85,6 +87,7 @@ import com.g90.backend.modules.payment.entity.InvoiceItemEntity;
 import com.g90.backend.modules.payment.entity.PaymentOptionEntity;
 import com.g90.backend.modules.payment.repository.InvoiceRepository;
 import com.g90.backend.modules.payment.repository.PaymentOptionRepository;
+import com.g90.backend.modules.payment.service.ContractBillingService;
 import com.g90.backend.modules.product.dto.PaginationResponse;
 import com.g90.backend.modules.product.entity.ProductEntity;
 import com.g90.backend.modules.product.entity.ProductStatus;
@@ -162,6 +165,7 @@ public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepository;
     private final ContractVersionRepository contractVersionRepository;
     private final ContractApprovalRepository contractApprovalRepository;
+    private final ContractCancellationSettlementRepository contractCancellationSettlementRepository;
     private final ContractStatusHistoryRepository contractStatusHistoryRepository;
     private final ContractDocumentRepository contractDocumentRepository;
     private final ContractTrackingEventRepository contractTrackingEventRepository;
@@ -174,6 +178,7 @@ public class ContractServiceImpl implements ContractService {
     private final DebtInvoiceRepository debtInvoiceRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
     private final PaymentOptionRepository paymentOptionRepository;
+    private final ContractBillingService contractBillingService;
     private final ContractPricingGateway contractPricingGateway;
     private final ContractCreditGateway contractCreditGateway;
     private final ContractInventoryGateway contractInventoryGateway;
@@ -190,6 +195,7 @@ public class ContractServiceImpl implements ContractService {
             ContractRepository contractRepository,
             ContractVersionRepository contractVersionRepository,
             ContractApprovalRepository contractApprovalRepository,
+            ContractCancellationSettlementRepository contractCancellationSettlementRepository,
             ContractStatusHistoryRepository contractStatusHistoryRepository,
             ContractDocumentRepository contractDocumentRepository,
             ContractTrackingEventRepository contractTrackingEventRepository,
@@ -202,6 +208,7 @@ public class ContractServiceImpl implements ContractService {
             DebtInvoiceRepository debtInvoiceRepository,
             PaymentAllocationRepository paymentAllocationRepository,
             PaymentOptionRepository paymentOptionRepository,
+            ContractBillingService contractBillingService,
             ContractPricingGateway contractPricingGateway,
             ContractCreditGateway contractCreditGateway,
             ContractInventoryGateway contractInventoryGateway,
@@ -217,6 +224,7 @@ public class ContractServiceImpl implements ContractService {
         this.contractRepository = contractRepository;
         this.contractVersionRepository = contractVersionRepository;
         this.contractApprovalRepository = contractApprovalRepository;
+        this.contractCancellationSettlementRepository = contractCancellationSettlementRepository;
         this.contractStatusHistoryRepository = contractStatusHistoryRepository;
         this.contractDocumentRepository = contractDocumentRepository;
         this.contractTrackingEventRepository = contractTrackingEventRepository;
@@ -229,6 +237,7 @@ public class ContractServiceImpl implements ContractService {
         this.debtInvoiceRepository = debtInvoiceRepository;
         this.paymentAllocationRepository = paymentAllocationRepository;
         this.paymentOptionRepository = paymentOptionRepository;
+        this.contractBillingService = contractBillingService;
         this.contractPricingGateway = contractPricingGateway;
         this.contractCreditGateway = contractCreditGateway;
         this.contractInventoryGateway = contractInventoryGateway;
@@ -626,6 +635,7 @@ public class ContractServiceImpl implements ContractService {
 
         recordStatusHistory(saved, previousStatus, ContractStatus.SUBMITTED.name(), normalizeNullable(request.getSubmissionNote()), currentUser.userId());
         recordTrackingEvent(saved, ContractTrackingEventType.SUBMITTED, ContractStatus.SUBMITTED.name(), "Contract submitted", normalizeNullable(request.getSubmissionNote()), null, null, currentUser.userId());
+        contractBillingService.ensureInitialBillingInvoice(saved, currentUser.userId());
         contractInventoryGateway.reserveInventory(saved);
         recordTrackingEvent(saved, ContractTrackingEventType.INVENTORY_RESERVED, ContractStatus.SUBMITTED.name(), "Inventory reserved", "Reservation requested for fulfillment", null, null, currentUser.userId());
         contractNotificationGateway.notifyWarehousePreparation(saved, "Contract submitted for preparation");
@@ -1420,6 +1430,7 @@ public class ContractServiceImpl implements ContractService {
             } else {
                 assertInventoryAvailable(contract);
                 prepareSubmittedContract(contract, currentUser.userId());
+                contractBillingService.ensureInitialBillingInvoice(contract, currentUser.userId());
                 contractInventoryGateway.reserveInventory(contract);
                 recordTrackingEvent(contract, ContractTrackingEventType.APPROVED, ContractStatus.SUBMITTED.name(), "Approval granted", normalizeNullable(request.getComment()), null, null, currentUser.userId());
                 recordTrackingEvent(contract, ContractTrackingEventType.INVENTORY_RESERVED, ContractStatus.SUBMITTED.name(), "Inventory reserved", "Reservation requested for fulfillment", null, null, currentUser.userId());
@@ -1564,12 +1575,47 @@ public class ContractServiceImpl implements ContractService {
     }
 
     private void applyCancellationDebtSettlement(ContractEntity contract, String cancellationReasonCode, String actingUserId) {
-        CancellationDebtRule rule = determineCancellationDebtRule(contract, cancellationReasonCode);
         List<InvoiceEntity> contractInvoices = invoiceRepository.findByContractIdWithCustomerAndContract(contract.getId());
         List<String> invoiceIds = contractInvoices.stream().map(InvoiceEntity::getId).toList();
         List<PaymentAllocationEntity> allocations = invoiceIds.isEmpty()
                 ? List.of()
                 : paymentAllocationRepository.findDetailedByInvoiceIds(invoiceIds);
+        BigDecimal paidDepositAmount = contractBillingService.paidDepositAmount(contract);
+
+        if (paidDepositAmount.compareTo(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)) > 0) {
+            if (isCustomerCancellation(cancellationReasonCode)) {
+                createCancellationSettlement(
+                        contract,
+                        "CUSTOMER_CANCEL_FORFEIT_DEPOSIT",
+                        BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                        BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                        paidDepositAmount,
+                        BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                        "SETTLED",
+                        "Customer cancellation forfeits the confirmed contract deposit.",
+                        actingUserId
+                );
+            } else {
+                BigDecimal compensationAmount = defaultIfNull(contract.getTotalAmount())
+                        .multiply(TEN_PERCENT)
+                        .divide(HUNDRED, 2, RoundingMode.HALF_UP);
+                createCancellationSettlement(
+                        contract,
+                        "COMPANY_CANCEL_REFUND_AND_COMPENSATION",
+                        paidDepositAmount,
+                        compensationAmount,
+                        BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
+                        paidDepositAmount.add(compensationAmount).setScale(2, RoundingMode.HALF_UP),
+                        "PENDING",
+                        "Company cancellation requires refunding the confirmed deposit plus 10% contract compensation.",
+                        actingUserId
+                );
+            }
+            cancelUnpaidContractInvoices(contractInvoices, allocations, actingUserId, "Contract cancellation settlement");
+            return;
+        }
+
+        CancellationDebtRule rule = determineCancellationDebtRule(contract, cancellationReasonCode);
 
         if (rule.receivableAmount().compareTo(BigDecimal.ZERO) <= 0) {
             cancelContractInvoices(contractInvoices, actingUserId, rule.note());
@@ -1604,6 +1650,60 @@ public class ContractServiceImpl implements ContractService {
             invoice.setUpdatedBy(actingUserId);
         }
         invoiceRepository.saveAll(contractInvoices);
+    }
+
+    private void cancelUnpaidContractInvoices(
+            List<InvoiceEntity> contractInvoices,
+            List<PaymentAllocationEntity> allocations,
+            String actingUserId,
+            String cancellationReason
+    ) {
+        if (contractInvoices.isEmpty()) {
+            return;
+        }
+        Map<String, BigDecimal> paidByInvoiceId = new LinkedHashMap<>();
+        for (PaymentAllocationEntity allocation : allocations) {
+            if (allocation.getInvoice() == null) {
+                continue;
+            }
+            paidByInvoiceId.merge(
+                    allocation.getInvoice().getId(),
+                    defaultIfNull(allocation.getAmount()),
+                    BigDecimal::add
+            );
+        }
+        List<InvoiceEntity> unpaidInvoices = contractInvoices.stream()
+                .filter(invoice -> !"CANCELLED".equalsIgnoreCase(invoice.getStatus()) && !"VOID".equalsIgnoreCase(invoice.getStatus()))
+                .filter(invoice -> paidByInvoiceId.getOrDefault(invoice.getId(), BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                        .compareTo(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)) <= 0)
+                .toList();
+        cancelContractInvoices(unpaidInvoices, actingUserId, cancellationReason);
+    }
+
+    private void createCancellationSettlement(
+            ContractEntity contract,
+            String settlementType,
+            BigDecimal depositRefundAmount,
+            BigDecimal compensationAmount,
+            BigDecimal forfeitedDepositAmount,
+            BigDecimal totalPayableAmount,
+            String status,
+            String note,
+            String actingUserId
+    ) {
+        ContractCancellationSettlementEntity settlement = new ContractCancellationSettlementEntity();
+        settlement.setContract(contract);
+        settlement.setCustomer(contract.getCustomer());
+        settlement.setSettlementType(settlementType);
+        settlement.setDepositRefundAmount(normalizeMoney(depositRefundAmount));
+        settlement.setCompensationAmount(normalizeMoney(compensationAmount));
+        settlement.setForfeitedDepositAmount(normalizeMoney(forfeitedDepositAmount));
+        settlement.setTotalPayableAmount(normalizeMoney(totalPayableAmount));
+        settlement.setStatus(status);
+        settlement.setNote(note);
+        settlement.setCreatedBy(actingUserId);
+        settlement.setUpdatedBy(actingUserId);
+        contractCancellationSettlementRepository.save(settlement);
     }
 
     private void cancelNonSettlementInvoices(

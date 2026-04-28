@@ -11,6 +11,7 @@ public record SaleOrderDetailResponseData(
         ProjectData project,
         List<ItemData> items,
         FulfillmentSummaryData fulfillment,
+        PaymentGateData paymentGate,
         List<TimelineEventData> timeline,
         List<InventoryIssueData> inventoryIssues,
         List<InvoiceData> invoices
@@ -80,6 +81,17 @@ public record SaleOrderDetailResponseData(
     ) {
     }
 
+    public record PaymentGateData(
+            boolean canStartFulfillment,
+            boolean canComplete,
+            String blockedReason,
+            BigDecimal upfrontRequiredAmount,
+            BigDecimal upfrontPaidAmount,
+            BigDecimal finalRequiredAmount,
+            BigDecimal finalPaidAmount
+    ) {
+    }
+
     public record TimelineEventData(
             String eventType,
             String eventStatus,
@@ -109,6 +121,7 @@ public record SaleOrderDetailResponseData(
             String invoiceNumber,
             LocalDate issueDate,
             LocalDate dueDate,
+            String billingPhase,
             BigDecimal grandTotal,
             BigDecimal paidAmount,
             BigDecimal outstandingAmount,

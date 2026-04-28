@@ -38,6 +38,9 @@ public class InvoiceCreateRequest {
     @Size(max = 20, message = "status must not exceed 20 characters")
     private String status;
 
+    @Size(max = 30, message = "billingPhase must not exceed 30 characters")
+    private String billingPhase;
+
     @Valid
     private List<InvoiceItemRequest> items;
 }

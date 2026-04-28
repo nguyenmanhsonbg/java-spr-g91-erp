@@ -9,6 +9,7 @@ public record InvoiceResponse(
         String id,
         String invoiceNumber,
         String sourceType,
+        String billingPhase,
         String contractId,
         String contractNumber,
         String customerId,

@@ -51,6 +51,9 @@ public class InvoiceEntity {
     @Column(name = "source_type", length = 30)
     private String sourceType;
 
+    @Column(name = "billing_phase", length = 30)
+    private String billingPhase;
+
     @Column(name = "customer_name", length = 255)
     private String customerName;
 

@@ -258,6 +258,7 @@ class PaymentConfirmationRequestServiceImplTest {
                 invoiceId,
                 invoiceNumber,
                 "CONTRACT",
+                "GENERAL",
                 "contract-1",
                 "CT-001",
                 customerId,

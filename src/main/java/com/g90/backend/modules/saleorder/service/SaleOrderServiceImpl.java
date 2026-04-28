@@ -29,6 +29,7 @@ import com.g90.backend.modules.payment.dto.InvoiceCreateRequest;
 import com.g90.backend.modules.payment.dto.InvoiceResponse;
 import com.g90.backend.modules.payment.entity.InvoiceEntity;
 import com.g90.backend.modules.payment.repository.InvoiceRepository;
+import com.g90.backend.modules.payment.service.ContractBillingService;
 import com.g90.backend.modules.payment.service.InvoiceService;
 import com.g90.backend.modules.product.dto.PaginationResponse;
 import com.g90.backend.modules.project.entity.ProjectManagementEntity;
@@ -133,6 +134,7 @@ public class SaleOrderServiceImpl implements SaleOrderService {
     private final CustomerProfileRepository customerProfileRepository;
     private final ContractInventoryGateway contractInventoryGateway;
     private final ContractService contractService;
+    private final ContractBillingService contractBillingService;
     private final InvoiceService invoiceService;
     private final AuditLogRepository auditLogRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -296,6 +298,7 @@ public class SaleOrderServiceImpl implements SaleOrderService {
         invoiceRequest.setPaymentTerms(request.getPaymentTerms());
         invoiceRequest.setNote(request.getNote());
         invoiceRequest.setStatus(request.getStatus());
+        invoiceRequest.setBillingPhase(request.getBillingPhase());
         invoiceRequest.setItems(request.getItems());
         return invoiceService.createInvoice(invoiceRequest);
     }
@@ -355,6 +358,7 @@ public class SaleOrderServiceImpl implements SaleOrderService {
         List<InvoiceEntity> invoices = invoiceRepository.findByContractIdWithCustomerAndContract(saleOrder.getId());
         Map<String, InvoiceFinancialSummary> invoiceSummaries = buildInvoiceSummaries(invoices);
         List<SaleOrderDetailResponseData.ItemData> items = saleOrder.getItems().stream().map(this::toItemData).toList();
+        ContractBillingService.PaymentGateStatus paymentGate = contractBillingService.evaluatePaymentGate(saleOrder);
 
         return new SaleOrderDetailResponseData(
                 new SaleOrderDetailResponseData.HeaderData(
@@ -390,6 +394,15 @@ public class SaleOrderServiceImpl implements SaleOrderService {
                         items.size(),
                         inventoryIssues.size(),
                         invoices.size()
+                ),
+                new SaleOrderDetailResponseData.PaymentGateData(
+                        paymentGate.canStartFulfillment(),
+                        paymentGate.canComplete(),
+                        paymentGate.blockedReason(),
+                        paymentGate.upfrontRequiredAmount(),
+                        paymentGate.upfrontPaidAmount(),
+                        paymentGate.finalRequiredAmount(),
+                        paymentGate.finalPaidAmount()
                 ),
                 events.stream().map(this::toDetailTimelineEvent).toList(),
                 inventoryIssues.stream().map(this::toInventoryIssueData).toList(),
@@ -478,6 +491,15 @@ public class SaleOrderServiceImpl implements SaleOrderService {
         };
         if (!allowed) {
             throw RequestValidationException.singleError("status", "Invalid sale order status transition");
+        }
+        ContractBillingService.PaymentGateStatus paymentGate = contractBillingService.evaluatePaymentGate(saleOrder);
+        if ((targetStatus == ContractStatus.PROCESSING || targetStatus == ContractStatus.RESERVED)
+                && currentStatus == ContractStatus.SUBMITTED
+                && !paymentGate.canStartFulfillment()) {
+            throw RequestValidationException.singleError("status", paymentGate.blockedReason());
+        }
+        if (targetStatus == ContractStatus.COMPLETED && !paymentGate.canComplete()) {
+            throw RequestValidationException.singleError("status", paymentGate.blockedReason());
         }
     }
 
@@ -594,6 +616,7 @@ public class SaleOrderServiceImpl implements SaleOrderService {
                 invoice.getInvoiceNumber(),
                 invoice.getIssueDate(),
                 invoice.getDueDate(),
+                normalizeBillingPhase(invoice.getBillingPhase()),
                 summary.grandTotal(),
                 summary.paidAmount(),
                 summary.outstandingAmount(),
@@ -900,6 +923,11 @@ public class SaleOrderServiceImpl implements SaleOrderService {
             return "ISSUED";
         }
         return normalized;
+    }
+
+    private String normalizeBillingPhase(String value) {
+        String normalized = normalizeUpper(value);
+        return StringUtils.hasText(normalized) ? normalized : ContractBillingService.PHASE_GENERAL;
     }
 
     private BigDecimal normalizeMoney(BigDecimal value) {
